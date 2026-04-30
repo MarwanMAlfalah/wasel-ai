@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ChartNoAxesColumnIncreasing,
@@ -24,10 +24,74 @@ import {
 } from "@/lib/client-storage";
 
 export default function DashboardPage() {
-  const [invoice] = useState<TemporaryInvoiceData>(
+  const [invoice, setInvoice] = useState<TemporaryInvoiceData>(
     () => getStoredInvoice() ?? defaultTemporaryInvoiceData,
   );
-  const [invoiceViewed] = useState(() => getInvoiceViewed());
+  const [invoiceViewed, setInvoiceViewed] = useState(() => getInvoiceViewed());
+
+  useEffect(() => {
+    if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
+      return;
+    }
+
+    let isActive = true;
+
+    async function loadInvoices() {
+      try {
+        const response = await fetch("/api/invoices/list");
+
+        if (!response.ok) {
+          throw new Error("Load invoices request failed");
+        }
+
+        const result = (await response.json()) as {
+          invoices: Array<{
+            invoiceId: string;
+            token: string;
+            invoiceNumber: string;
+            clientName: string;
+            service: string;
+            totalAmount: number;
+            remainingAmount: number;
+            paymentStatus: string;
+            dueDate: string | null;
+            viewCount: number;
+            createdAt: number;
+          }>;
+        };
+
+        if (!isActive || result.invoices.length === 0) {
+          return;
+        }
+
+        const latestInvoice = result.invoices[0];
+        const viewed = result.invoices.some((listedInvoice) => listedInvoice.viewCount > 0);
+
+        setInvoice((current) => ({
+          ...current,
+          id: latestInvoice.invoiceId,
+          token: latestInvoice.token,
+          invoiceNumber: latestInvoice.invoiceNumber,
+          clientName: latestInvoice.clientName,
+          serviceName: latestInvoice.service,
+          projectValue: latestInvoice.totalAmount,
+          amountRemaining: latestInvoice.remainingAmount,
+          dueDate: latestInvoice.dueDate ?? "",
+          paymentStatus: latestInvoice.paymentStatus as TemporaryInvoiceData["paymentStatus"],
+          viewCount: latestInvoice.viewCount,
+        }));
+        setInvoiceViewed(viewed);
+      } catch {
+        // keep local fallback
+      }
+    }
+
+    void loadInvoices();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   const invoiceStatusText = invoiceViewed
     ? "العميل شاهد الفاتورة اليوم"

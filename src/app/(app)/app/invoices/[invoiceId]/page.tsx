@@ -1,8 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
   CalendarClock,
   Copy,
@@ -23,20 +24,100 @@ import { Button } from "@/components/ui/button";
 import {
   buildPublicInvoiceUrl,
   defaultTemporaryInvoiceData,
-  getInvoiceViewed,
   getStoredInvoice,
+  setStoredInvoice,
   type TemporaryInvoiceData,
 } from "@/lib/client-storage";
 
 export default function InvoiceDetailPage() {
-  const [invoice] = useState<TemporaryInvoiceData>(
+  const params = useParams<{ invoiceId: string }>();
+  const [invoice, setInvoice] = useState<TemporaryInvoiceData>(
     () => getStoredInvoice() ?? defaultTemporaryInvoiceData,
   );
-  const [invoiceViewed] = useState(() => getInvoiceViewed());
   const { showToast } = useToast();
-  const publicInvoiceUrl = process.env.NEXT_PUBLIC_APP_URL
-    ? `${process.env.NEXT_PUBLIC_APP_URL}/i/demo-token`
-    : "/i/demo-token";
+  const publicInvoiceUrl = buildPublicInvoiceUrl(invoice.token ?? "demo-token");
+
+  useEffect(() => {
+    const invoiceId = params?.invoiceId;
+
+    if (!process.env.NEXT_PUBLIC_CONVEX_URL || !invoiceId || invoiceId === "demo") {
+      return;
+    }
+
+    let isActive = true;
+
+    async function loadInvoice() {
+      try {
+        const response = await fetch(`/api/invoices/${invoiceId}`);
+
+        if (!response.ok) {
+          throw new Error("Load invoice request failed");
+        }
+
+        const result = (await response.json()) as {
+          invoice: {
+            invoiceId: string;
+            token: string;
+            invoiceNumber: string;
+            freelancerName: string;
+            clientName: string;
+            service: string;
+            totalAmount: number;
+            currency: string;
+            paidAmount: number;
+            remainingAmount: number;
+            deliveryDate: string | null;
+            dueDate: string | null;
+            paymentStatus: string;
+            agreementTone: string;
+            clientUrgency: string;
+            followUpStyle: string;
+            smartInsight: string;
+            confidence: number;
+            viewCount: number;
+            firstViewedAt: number | null;
+            lastViewedAt: number | null;
+          };
+        };
+
+        if (!isActive) {
+          return;
+        }
+
+        const nextInvoice: TemporaryInvoiceData = {
+          ...invoice,
+          id: result.invoice.invoiceId,
+          token: result.invoice.token,
+          invoiceNumber: result.invoice.invoiceNumber,
+          freelancerName: result.invoice.freelancerName,
+          clientName: result.invoice.clientName,
+          serviceName: result.invoice.service,
+          projectValue: result.invoice.totalAmount,
+          currencyLabel: result.invoice.currency,
+          currencyShort: result.invoice.currency,
+          amountPaid: result.invoice.paidAmount,
+          amountRemaining: result.invoice.remainingAmount,
+          deliveryDate: result.invoice.deliveryDate ?? "",
+          dueDate: result.invoice.dueDate ?? "",
+          paymentStatus: result.invoice.paymentStatus as TemporaryInvoiceData["paymentStatus"],
+          viewCount: result.invoice.viewCount,
+          firstViewedAt: result.invoice.firstViewedAt,
+          lastViewedAt: result.invoice.lastViewedAt,
+        };
+
+        setInvoice(nextInvoice);
+        setStoredInvoice(nextInvoice);
+      } catch {
+        // keep local fallback
+      }
+    }
+
+    void loadInvoice();
+
+    return () => {
+      isActive = false;
+    };
+  }, [invoice, params?.invoiceId]);
 
   async function handleCopyInvoiceLink() {
     const publicUrl = buildPublicInvoiceUrl();
@@ -115,7 +196,9 @@ export default function InvoiceDetailPage() {
                 {publicInvoiceUrl}
               </p>
               <p className="mt-2 text-sm text-muted-foreground">
-                {invoiceViewed ? "تمت مشاهدة الفاتورة" : "لم يشاهدها العميل بعد"}
+                {invoice.viewCount && invoice.viewCount > 0
+                  ? "العميل شاهد الفاتورة"
+                  : "لم يشاهدها العميل بعد"}
               </p>
             </div>
 
@@ -129,7 +212,7 @@ export default function InvoiceDetailPage() {
                 انسخ رابط الفاتورة
               </Button>
               <Button asChild className="h-11 rounded-2xl">
-                <Link href="/i/demo-token">
+                <Link href={`/i/${invoice.token ?? "demo-token"}`}>
                   <ExternalLink className="size-4" />
                   فتح رابط الفاتورة
                 </Link>
@@ -151,7 +234,7 @@ export default function InvoiceDetailPage() {
             label="تنبيه واصل"
             title="الفاتورة جاهزة للمشاركة"
             description="الدفعة المتبقية واضحة، ووقت الاستحقاق قريب بما يكفي لتجهيز متابعة قصيرة ولطيفة عند الحاجة."
-            badge={<StatusBadge status={invoiceViewed ? "تمت المشاهدة" : "لم تُشاهد بعد"} />}
+            badge={<StatusBadge status={invoice.viewCount && invoice.viewCount > 0 ? "تمت المشاهدة" : "لم تُشاهد بعد"} />}
           />
         </div>
       </section>
@@ -180,7 +263,9 @@ export default function InvoiceDetailPage() {
           title="النشاط الأخير"
           lines={[
             "تم تجهيز الفاتورة الداخلية",
-            invoiceViewed ? "تم تسجيل مشاهدة الرابط العام" : "بانتظار فتح الرابط من العميل",
+            invoice.viewCount && invoice.viewCount > 0
+              ? "تم تسجيل مشاهدة الرابط العام"
+              : "بانتظار فتح الرابط من العميل",
             "رسالة المتابعة الجاهزة متاحة للإرسال",
           ]}
         />

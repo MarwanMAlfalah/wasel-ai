@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import {
   CheckCircle2,
   CircleDollarSign,
@@ -19,13 +20,90 @@ import {
 } from "@/lib/client-storage";
 
 export default function PublicInvoicePage() {
-  const [invoice] = useState<TemporaryInvoiceData>(
+  const params = useParams<{ token: string }>();
+  const [invoice, setInvoice] = useState<TemporaryInvoiceData>(
     () => getStoredInvoice() ?? defaultTemporaryInvoiceData,
   );
 
   useEffect(() => {
-    setInvoiceViewed(true);
-  }, []);
+    const token = params?.token ?? "demo-token";
+    let isActive = true;
+
+    async function loadAndTrackInvoice() {
+      if (process.env.NEXT_PUBLIC_CONVEX_URL && token !== "demo-token") {
+        try {
+          const invoiceResponse = await fetch(`/api/public-invoices/${token}`);
+
+          if (invoiceResponse.ok) {
+            const invoicePayload = (await invoiceResponse.json()) as {
+              invoice: {
+                invoiceId: string;
+                token: string;
+                invoiceNumber: string;
+                freelancerName: string;
+                clientName: string;
+                service: string;
+                totalAmount: number;
+                currency: string;
+                paidAmount: number;
+                remainingAmount: number;
+                deliveryDate: string | null;
+                dueDate: string | null;
+                paymentStatus: string;
+                viewCount: number;
+                firstViewedAt: number | null;
+                lastViewedAt: number | null;
+              };
+            };
+
+            if (isActive) {
+              const nextInvoice: TemporaryInvoiceData = {
+                ...invoice,
+                id: invoicePayload.invoice.invoiceId,
+                token: invoicePayload.invoice.token,
+                invoiceNumber: invoicePayload.invoice.invoiceNumber,
+                freelancerName: invoicePayload.invoice.freelancerName,
+                clientName: invoicePayload.invoice.clientName,
+                serviceName: invoicePayload.invoice.service,
+                projectValue: invoicePayload.invoice.totalAmount,
+                currencyLabel: invoicePayload.invoice.currency,
+                currencyShort: invoicePayload.invoice.currency,
+                amountPaid: invoicePayload.invoice.paidAmount,
+                amountRemaining: invoicePayload.invoice.remainingAmount,
+                deliveryDate: invoicePayload.invoice.deliveryDate ?? "",
+                dueDate: invoicePayload.invoice.dueDate ?? "",
+                paymentStatus:
+                  invoicePayload.invoice.paymentStatus as TemporaryInvoiceData["paymentStatus"],
+                viewCount: invoicePayload.invoice.viewCount,
+                firstViewedAt: invoicePayload.invoice.firstViewedAt,
+                lastViewedAt: invoicePayload.invoice.lastViewedAt,
+              };
+
+              setInvoice(nextInvoice);
+            }
+          }
+
+          await fetch("/api/public-invoices/view", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ token }),
+          });
+        } catch {
+          setInvoiceViewed(true);
+        }
+      } else {
+        setInvoiceViewed(true);
+      }
+    }
+
+    void loadAndTrackInvoice();
+
+    return () => {
+      isActive = false;
+    };
+  }, [invoice, params?.token]);
 
   return (
     <div className="flex flex-1 items-center justify-center py-8 sm:py-12">

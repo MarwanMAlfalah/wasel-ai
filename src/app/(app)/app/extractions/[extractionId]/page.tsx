@@ -14,6 +14,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ProcessingChecklist } from "@/components/shared/processing-checklist";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ToneBadge } from "@/components/shared/tone-badge";
+import { useToast } from "@/components/shared/toast-provider";
 import { Button } from "@/components/ui/button";
 import {
   defaultTemporaryInvoiceData,
@@ -114,8 +115,10 @@ function parseAmount(value: string, fallback: number) {
 
 export default function ExtractionReviewPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const storedExtraction = getStoredExtraction();
   const [isProcessing, setIsProcessing] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [conversation] = useState(() => getStoredConversation() ?? "");
   const [formData, setFormData] = useState<EditableInvoiceForm>(() => {
     if (storedExtraction) {
@@ -146,7 +149,7 @@ export default function ExtractionReviewPage() {
     }));
   }
 
-  function handleCreateInvoice() {
+  async function handleCreateInvoice() {
     const nextInvoice: TemporaryInvoiceData = {
       ...defaultTemporaryInvoiceData,
       invoiceViewStatus: "لم تُشاهد بعد",
@@ -176,9 +179,75 @@ export default function ExtractionReviewPage() {
 
     nextInvoice.expectedProfit = nextInvoice.projectValue - nextInvoice.projectExpenses;
 
+    const payload = {
+      freelancerName: nextInvoice.freelancerName,
+      clientName: nextInvoice.clientName,
+      service: nextInvoice.serviceName,
+      totalAmount: nextInvoice.projectValue,
+      currency: nextInvoice.currencyShort,
+      paidAmount: nextInvoice.amountPaid,
+      remainingAmount: nextInvoice.amountRemaining,
+      deliveryDate: nextInvoice.deliveryDate || null,
+      dueDate: nextInvoice.dueDate || null,
+      paymentStatus: nextInvoice.paymentStatus,
+      agreementTone:
+        storedExtraction?.data.agreementTone ?? "غير محددة",
+      clientUrgency:
+        storedExtraction?.data.clientUrgency ?? "غير محددة",
+      followUpStyle:
+        storedExtraction?.data.followUpStyle ?? "رسالة مهنية",
+      smartInsight:
+        storedExtraction?.data.smartInsight ??
+        "الفاتورة جاهزة للمتابعة مع العميل.",
+      confidence: storedExtraction?.data.confidence ?? 0.5,
+    };
+
     setStoredInvoice(nextInvoice);
     setInvoiceViewed(false);
-    router.push("/app/invoices/demo");
+
+    if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
+      router.push("/app/invoices/demo");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const response = await fetch("/api/invoices/create", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        throw new Error("Create invoice request failed");
+      }
+
+      const result = (await response.json()) as {
+        invoiceId: string;
+        token: string;
+        invoiceNumber: string;
+      };
+
+      const persistedInvoice: TemporaryInvoiceData = {
+        ...nextInvoice,
+        id: result.invoiceId,
+        token: result.token,
+        invoiceNumber: result.invoiceNumber,
+        viewCount: 0,
+        firstViewedAt: null,
+        lastViewedAt: null,
+      };
+
+      setStoredInvoice(persistedInvoice);
+      router.push(`/app/invoices/${result.invoiceId}`);
+    } catch {
+      showToast("تعذر حفظ الفاتورة في Convex، سنكمل بالوضع المؤقت");
+      router.push("/app/invoices/demo");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -192,8 +261,9 @@ export default function ExtractionReviewPage() {
             <Button
               className="h-11 rounded-2xl px-5 text-sm font-bold"
               onClick={handleCreateInvoice}
+              disabled={isSaving}
             >
-              تأكيد وإنشاء الفاتورة
+              {isSaving ? "جاري إنشاء الفاتورة..." : "تأكيد وإنشاء الفاتورة"}
             </Button>
           ) : null
         }

@@ -5,6 +5,7 @@
 ## التشغيل المحلي
 
 ```bash
+npx convex dev
 npm install
 npm run dev
 ```
@@ -31,3 +32,10 @@ GROK_API_KEY=
 - الطلب يذهب إلى `POST /api/ai/extract`
 - النتيجة تُحفظ مؤقتًا في المتصفح ثم تظهر في `/app/extractions/demo`
 - لا توجد قاعدة بيانات أو Convex schema بعد في هذه المرحلة
+
+## تشغيل Convex في هذه المرحلة
+
+- شغّل `npx convex dev` لتوليد الأنواع وربط الديف دبلويمنت
+- تأكد من وجود `NEXT_PUBLIC_CONVEX_URL` في `.env.local`
+- بعد ذلك شغّل `npm run dev`
+- إذا لم يكن Convex مهيأ، سيستخدم التطبيق مسار `localStorage` المؤقت كـ fallback

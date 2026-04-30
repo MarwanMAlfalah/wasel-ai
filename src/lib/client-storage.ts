@@ -16,6 +16,8 @@ const STORAGE_KEYS = {
 } as const;
 
 export type TemporaryInvoiceData = {
+  id?: string;
+  token?: string;
   invoiceNumber: string;
   freelancerName: string;
   clientName: string;
@@ -31,6 +33,9 @@ export type TemporaryInvoiceData = {
   dueDate: string;
   paymentStatus: StatusBadgeValue;
   invoiceViewStatus: StatusBadgeValue;
+  viewCount?: number;
+  firstViewedAt?: number | null;
+  lastViewedAt?: number | null;
 };
 
 export const defaultTemporaryInvoiceData: TemporaryInvoiceData = {
@@ -145,16 +150,16 @@ export function extractionToTemporaryInvoice(
   };
 }
 
-export function buildPublicInvoiceUrl() {
+export function buildPublicInvoiceUrl(token = "demo-token") {
   if (process.env.NEXT_PUBLIC_APP_URL) {
-    return `${process.env.NEXT_PUBLIC_APP_URL}/i/demo-token`;
+    return `${process.env.NEXT_PUBLIC_APP_URL}/i/${token}`;
   }
 
   if (!isBrowser()) {
-    return "/i/demo-token";
+    return `/i/${token}`;
   }
 
-  return `${window.location.origin}/i/demo-token`;
+  return `${window.location.origin}/i/${token}`;
 }
 
 export function buildFollowUpMessage(invoice: TemporaryInvoiceData) {
