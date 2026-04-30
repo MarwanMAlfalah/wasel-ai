@@ -18,7 +18,9 @@ import { Button } from "@/components/ui/button";
 import {
   defaultTemporaryInvoiceData,
   getStoredConversation,
+  getStoredExtraction,
   getStoredInvoice,
+  mapCurrencyToLabel,
   setInvoiceViewed,
   setStoredInvoice,
   type TemporaryInvoiceData,
@@ -77,6 +79,34 @@ function invoiceToFormData(invoice: TemporaryInvoiceData): EditableInvoiceForm {
   };
 }
 
+function extractionToFormData(extraction: import("@/lib/ai/types").ExtractedAgreement): EditableInvoiceForm {
+  const currency = mapCurrencyToLabel(extraction.currency);
+
+  return {
+    clientName: extraction.clientName ?? defaultTemporaryInvoiceData.clientName,
+    freelancerName:
+      extraction.freelancerName ?? defaultTemporaryInvoiceData.freelancerName,
+    serviceName: extraction.service ?? defaultTemporaryInvoiceData.serviceName,
+    projectValue: String(
+      extraction.totalAmount ?? defaultTemporaryInvoiceData.projectValue,
+    ),
+    currencyLabel: currency.label,
+    amountPaid: String(
+      extraction.paidAmount ?? defaultTemporaryInvoiceData.amountPaid,
+    ),
+    amountRemaining: String(
+      extraction.remainingAmount ?? defaultTemporaryInvoiceData.amountRemaining,
+    ),
+    deliveryDate:
+      extraction.deliveryDate ?? defaultTemporaryInvoiceData.deliveryDate,
+    dueDate: extraction.dueDate ?? defaultTemporaryInvoiceData.dueDate,
+    paymentStatus:
+      extraction.paymentStatus === "مدفوعة جزئيًا"
+        ? "مدفوع جزئيًا"
+        : extraction.paymentStatus,
+  };
+}
+
 function parseAmount(value: string, fallback: number) {
   const digitsOnly = value.replace(/[^\d]/g, "");
   return digitsOnly ? Number(digitsOnly) : fallback;
@@ -84,9 +114,14 @@ function parseAmount(value: string, fallback: number) {
 
 export default function ExtractionReviewPage() {
   const router = useRouter();
+  const storedExtraction = getStoredExtraction();
   const [isProcessing, setIsProcessing] = useState(true);
   const [conversation] = useState(() => getStoredConversation() ?? "");
   const [formData, setFormData] = useState<EditableInvoiceForm>(() => {
+    if (storedExtraction) {
+      return extractionToFormData(storedExtraction.data);
+    }
+
     const storedInvoice = getStoredInvoice();
     return invoiceToFormData(storedInvoice ?? defaultTemporaryInvoiceData);
   });
@@ -168,6 +203,12 @@ export default function ExtractionReviewPage() {
         سيتم ربط هذه الخطوة بالذكاء الاصطناعي الحقيقي في المرحلة التالية.
       </section>
 
+      {storedExtraction?.fallbackUsed ? (
+        <section className="rounded-[1.75rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-7 text-amber-800 shadow-[0_20px_60px_-52px_rgba(146,98,10,0.16)]">
+          تم استخدام تحليل تجريبي مؤقت بسبب تعذر الاتصال بالذكاء الاصطناعي
+        </section>
+      ) : null}
+
       <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
         <ProcessingChecklist completedCount={isProcessing ? 3 : 7} activeIndex={isProcessing ? 3 : 6} />
         <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
@@ -185,25 +226,33 @@ export default function ExtractionReviewPage() {
           <section className="grid gap-4 xl:grid-cols-[1fr_1fr]">
             <AIInsightCard
               label="نبرة الاتفاق"
-              title="التعاون مهني وإيجابي، والعميل واضح في مواعيد الدفع."
-              description="الأسلوب العام مطمئن ويعكس اتفاقًا منظمًا، لذلك يمكن تجهيز فاتورة ورسالة متابعة بصياغة مهنية مباشرة."
+              title={
+                storedExtraction?.data.agreementTone ??
+                "التعاون مهني وإيجابي، والعميل واضح في مواعيد الدفع."
+              }
+              description="الأسلوب العام المستنتج من المحادثة يساعد على تجهيز فاتورة ورسالة متابعة بصياغة مناسبة."
               badge={<ToneBadge tone="مهني" />}
             />
             <AIInsightCard
               label="مستوى الاستعجال"
-              title="متوسط"
-              description="لا يوجد توتر ظاهر في المحادثة، لكن وجود دفعة متبقية يجعل المتابعة قبل موعد الاستحقاق خطوة مناسبة."
+              title={storedExtraction?.data.clientUrgency ?? "متوسطة"}
+              description="هذا التقدير مبني على لغة العميل والمواعيد المذكورة داخل المحادثة."
               badge={<ToneBadge tone="مستعجل" />}
             />
             <AIInsightCard
               label="أسلوب المتابعة المقترح"
-              title="رسالة لطيفة ومباشرة"
+              title={
+                storedExtraction?.data.followUpStyle ?? "رسالة لطيفة ومباشرة"
+              }
               description="الأفضل تذكير العميل باحترام ووضوح مع ذكر المبلغ المتبقي وموعد الاستحقاق بدون لهجة ضاغطة."
               badge={<ToneBadge tone="ودي" />}
             />
             <AIInsightCard
               label="تنبيه واصل"
-              title="المبلغ المتبقي يمثل جزءًا مهمًا من قيمة المشروع، يفضّل تذكير العميل قبل موعد الاستحقاق."
+              title={
+                storedExtraction?.data.smartInsight ??
+                "المبلغ المتبقي يمثل جزءًا مهمًا من قيمة المشروع، يفضّل تذكير العميل قبل موعد الاستحقاق."
+              }
               description="هذه البطاقة ستتحول لاحقًا إلى تنبيه ديناميكي مبني على التفاصيل الحقيقية المستخرجة من المحادثة."
             />
           </section>

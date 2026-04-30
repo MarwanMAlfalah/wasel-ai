@@ -1,0 +1,53 @@
+import { z } from "zod";
+
+export const aiProviderSchema = z.enum([
+  "openai",
+  "gemini",
+  "anthropic",
+  "grok",
+  "mock",
+]);
+
+export type AIProviderName = z.infer<typeof aiProviderSchema>;
+
+export const extractedAgreementSchema = z.object({
+  clientName: z.string().min(1).nullable(),
+  freelancerName: z.string().min(1).nullable(),
+  service: z.string().min(1).nullable(),
+  totalAmount: z.number().finite().nullable(),
+  currency: z.enum(["SAR", "USD", "AED", "YER", "UNKNOWN"]),
+  paidAmount: z.number().finite().nullable(),
+  remainingAmount: z.number().finite().nullable(),
+  deliveryDate: z.string().min(1).nullable(),
+  dueDate: z.string().min(1).nullable(),
+  paymentStatus: z.enum([
+    "غير مدفوعة",
+    "مدفوعة جزئيًا",
+    "مدفوعة",
+    "متأخرة",
+    "غير محددة",
+  ]),
+  agreementTone: z.string(),
+  clientUrgency: z.enum(["منخفضة", "متوسطة", "عالية", "غير محددة"]),
+  followUpStyle: z.string(),
+  smartInsight: z.string(),
+  missingFields: z.array(z.string()),
+  confidence: z.number().min(0).max(1),
+});
+
+export type ExtractedAgreement = z.infer<typeof extractedAgreementSchema>;
+
+export type ExtractionResult = {
+  data: ExtractedAgreement;
+  provider: AIProviderName;
+  fallbackUsed: boolean;
+};
+
+export type GenerateJsonParams = {
+  systemPrompt: string;
+  userPrompt: string;
+};
+
+export type GenerateJsonHandler = (
+  params: GenerateJsonParams,
+) => Promise<string>;

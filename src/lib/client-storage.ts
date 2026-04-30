@@ -2,9 +2,15 @@
 
 import { demoInvoice } from "@/lib/demo-data";
 import type { StatusBadgeValue } from "@/components/shared/status-badge";
+import type {
+  AIProviderName,
+  ExtractedAgreement,
+  ExtractionResult,
+} from "@/lib/ai/types";
 
 const STORAGE_KEYS = {
   conversation: "wasil:conversation",
+  extraction: "wasil:extraction",
   invoice: "wasil:invoice",
   invoiceViewed: "wasil:invoice-viewed",
 } as const;
@@ -30,6 +36,8 @@ export type TemporaryInvoiceData = {
 export const defaultTemporaryInvoiceData: TemporaryInvoiceData = {
   ...demoInvoice,
 };
+
+export type TemporaryExtractionData = ExtractionResult;
 
 function isBrowser() {
   return typeof window !== "undefined";
@@ -64,6 +72,14 @@ export function setStoredConversation(value: string) {
   writeStorageValue(STORAGE_KEYS.conversation, value);
 }
 
+export function getStoredExtraction(): TemporaryExtractionData | null {
+  return readStorageValue<TemporaryExtractionData>(STORAGE_KEYS.extraction);
+}
+
+export function setStoredExtraction(value: TemporaryExtractionData) {
+  writeStorageValue(STORAGE_KEYS.extraction, value);
+}
+
 export function getStoredInvoice(): TemporaryInvoiceData | null {
   return readStorageValue<TemporaryInvoiceData>(STORAGE_KEYS.invoice);
 }
@@ -78,6 +94,55 @@ export function getInvoiceViewed() {
 
 export function setInvoiceViewed(value: boolean) {
   writeStorageValue(STORAGE_KEYS.invoiceViewed, value);
+}
+
+export function mapCurrencyToLabel(currency: ExtractedAgreement["currency"]) {
+  switch (currency) {
+    case "SAR":
+      return { label: "ريال سعودي", short: "ريال" };
+    case "USD":
+      return { label: "دولار أمريكي", short: "دولار" };
+    case "AED":
+      return { label: "درهم إماراتي", short: "درهم" };
+    case "YER":
+      return { label: "ريال يمني", short: "ريال" };
+    case "UNKNOWN":
+      return { label: "غير محددة", short: "عملة" };
+  }
+}
+
+export function extractionToTemporaryInvoice(
+  extraction: ExtractedAgreement,
+  provider: AIProviderName,
+): TemporaryInvoiceData {
+  const currency = mapCurrencyToLabel(extraction.currency);
+
+  return {
+    ...defaultTemporaryInvoiceData,
+    invoiceNumber: provider === "mock" ? "WA-DEMO" : defaultTemporaryInvoiceData.invoiceNumber,
+    clientName: extraction.clientName ?? defaultTemporaryInvoiceData.clientName,
+    freelancerName:
+      extraction.freelancerName ?? defaultTemporaryInvoiceData.freelancerName,
+    serviceName: extraction.service ?? defaultTemporaryInvoiceData.serviceName,
+    projectValue:
+      extraction.totalAmount ?? defaultTemporaryInvoiceData.projectValue,
+    currencyLabel: currency.label,
+    currencyShort: currency.short,
+    amountPaid: extraction.paidAmount ?? defaultTemporaryInvoiceData.amountPaid,
+    amountRemaining:
+      extraction.remainingAmount ?? defaultTemporaryInvoiceData.amountRemaining,
+    deliveryDate:
+      extraction.deliveryDate ?? defaultTemporaryInvoiceData.deliveryDate,
+    dueDate: extraction.dueDate ?? defaultTemporaryInvoiceData.dueDate,
+    paymentStatus:
+      extraction.paymentStatus === "مدفوعة جزئيًا"
+        ? "مدفوع جزئيًا"
+        : extraction.paymentStatus,
+    expectedProfit:
+      (extraction.totalAmount ?? defaultTemporaryInvoiceData.projectValue) -
+      defaultTemporaryInvoiceData.projectExpenses,
+    invoiceViewStatus: "لم تُشاهد بعد",
+  };
 }
 
 export function buildPublicInvoiceUrl() {

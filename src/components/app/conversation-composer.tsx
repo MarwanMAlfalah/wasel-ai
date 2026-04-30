@@ -5,16 +5,23 @@ import { useRouter } from "next/navigation";
 import { ImageUp, ShieldCheck, Sparkles } from "lucide-react";
 
 import { demoConversation } from "@/lib/demo-data";
-import { setStoredConversation } from "@/lib/client-storage";
+import {
+  extractionToTemporaryInvoice,
+  setInvoiceViewed,
+  setStoredConversation,
+  setStoredExtraction,
+  setStoredInvoice,
+} from "@/lib/client-storage";
 import { useToast } from "@/components/shared/toast-provider";
 import { Button } from "@/components/ui/button";
 
 export function ConversationComposer() {
   const [conversation, setConversation] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
   const { showToast } = useToast();
 
-  function handleExtract() {
+  async function handleExtract() {
     const trimmedConversation = conversation.trim();
 
     if (!trimmedConversation) {
@@ -22,8 +29,45 @@ export function ConversationComposer() {
       return;
     }
 
-    setStoredConversation(trimmedConversation);
-    router.push("/app/extractions/demo");
+    try {
+      setIsSubmitting(true);
+      setStoredConversation(trimmedConversation);
+      setInvoiceViewed(false);
+
+      const response = await fetch("/api/ai/extract", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          conversationText: trimmedConversation,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Extraction request failed");
+      }
+
+      const extractionResult = (await response.json()) as {
+        data: import("@/lib/ai/types").ExtractedAgreement;
+        provider: import("@/lib/ai/types").AIProviderName;
+        fallbackUsed: boolean;
+      };
+
+      setStoredExtraction(extractionResult);
+      setStoredInvoice(
+        extractionToTemporaryInvoice(
+          extractionResult.data,
+          extractionResult.provider,
+        ),
+      );
+
+      router.push("/app/extractions/demo");
+    } catch {
+      showToast("تعذر تحليل المحادثة حاليًا");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -65,8 +109,9 @@ export function ConversationComposer() {
             type="button"
             className="h-11 rounded-2xl px-5 text-sm font-bold"
             onClick={handleExtract}
+            disabled={isSubmitting}
           >
-            استخرج تفاصيل الاتفاق
+            {isSubmitting ? "جاري تحليل المحادثة..." : "استخرج تفاصيل الاتفاق"}
           </Button>
         </div>
       </section>
