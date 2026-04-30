@@ -51,3 +51,21 @@ export type GenerateJsonParams = {
 export type GenerateJsonHandler = (
   params: GenerateJsonParams,
 ) => Promise<string>;
+
+export type FollowUpInput = {
+  clientName: string | null;
+  service: string | null;
+  remainingAmount: number | null;
+  currency: string | null;
+  dueDate: string | null;
+  paymentStatus: string | null;
+  agreementTone: string | null;
+  clientUrgency: string | null;
+  followUpStyle: string | null;
+};
+
+export type FollowUpResult = {
+  message: string;
+  provider: AIProviderName;
+  fallbackUsed: boolean;
+};

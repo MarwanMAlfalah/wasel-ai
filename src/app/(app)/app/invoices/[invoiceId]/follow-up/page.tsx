@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Copy, PencilLine, WalletCards } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -8,22 +8,96 @@ import { ToneBadge } from "@/components/shared/tone-badge";
 import { useToast } from "@/components/shared/toast-provider";
 import { Button } from "@/components/ui/button";
 import {
-  buildFollowUpMessage,
   defaultTemporaryInvoiceData,
+  getStoredExtraction,
   getStoredInvoice,
   type TemporaryInvoiceData,
 } from "@/lib/client-storage";
+import type { FollowUpInput } from "@/lib/ai/types";
 
 export default function FollowUpPage() {
   const [invoice] = useState<TemporaryInvoiceData>(
     () => getStoredInvoice() ?? defaultTemporaryInvoiceData,
   );
+  const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [fallbackUsed, setFallbackUsed] = useState(false);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const { showToast } = useToast();
 
-  const followUpMessage = buildFollowUpMessage(invoice);
+  useEffect(() => {
+    let isActive = true;
+
+    async function loadFollowUpMessage() {
+      const extraction = getStoredExtraction();
+
+      const followUpInput: FollowUpInput = {
+        clientName: invoice.clientName ?? null,
+        service: invoice.serviceName ?? null,
+        remainingAmount: invoice.amountRemaining ?? null,
+        currency: invoice.currencyShort ?? null,
+        dueDate: invoice.dueDate ?? null,
+        paymentStatus: invoice.paymentStatus ?? null,
+        agreementTone: extraction?.data.agreementTone ?? null,
+        clientUrgency: extraction?.data.clientUrgency ?? null,
+        followUpStyle: extraction?.data.followUpStyle ?? null,
+      };
+
+      try {
+        const response = await fetch("/api/ai/follow-up", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            invoiceData: followUpInput,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Follow-up request failed");
+        }
+
+        const result = (await response.json()) as {
+          message: string;
+          provider: import("@/lib/ai/types").AIProviderName;
+          fallbackUsed: boolean;
+        };
+
+        if (!isActive) {
+          return;
+        }
+
+        setMessage(result.message);
+        setFallbackUsed(result.fallbackUsed);
+      } catch {
+        if (!isActive) {
+          return;
+        }
+
+        setMessage("");
+        setFallbackUsed(false);
+        showToast("تعذر توليد رسالة المتابعة حاليًا");
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void loadFollowUpMessage();
+
+    return () => {
+      isActive = false;
+    };
+  }, [invoice, showToast]);
 
   async function handleCopyMessage() {
-    await navigator.clipboard.writeText(followUpMessage);
+    if (!message.trim()) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(message);
     showToast("تم نسخ رسالة المتابعة");
   }
 
@@ -46,18 +120,44 @@ export default function FollowUpPage() {
             </h3>
           </div>
 
-          <div className="mt-4 rounded-[1.5rem] border border-input bg-background px-4 py-4">
-            <p className="whitespace-pre-line text-sm leading-8 text-foreground">
-              {followUpMessage}
-            </p>
-          </div>
+          {fallbackUsed ? (
+            <div className="mt-4 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-800">
+              تم توليد رسالة افتراضية مؤقتًا بسبب تعذر الاتصال بالذكاء الاصطناعي
+            </div>
+          ) : null}
+
+          {isLoading ? (
+            <div className="mt-4 rounded-[1.5rem] border border-input bg-background px-4 py-5">
+              <p className="text-sm leading-8 text-muted-foreground">
+                واصل يكتب لك رسالة مناسبة…
+              </p>
+            </div>
+          ) : (
+            <div className="mt-4 rounded-[1.5rem] border border-input bg-background px-4 py-4">
+              <textarea
+                ref={textAreaRef}
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                className="min-h-[220px] w-full resize-none bg-transparent text-sm leading-8 text-foreground outline-none"
+              />
+            </div>
+          )}
 
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Button className="h-11 rounded-2xl px-5" onClick={handleCopyMessage}>
+            <Button
+              className="h-11 rounded-2xl px-5"
+              onClick={handleCopyMessage}
+              disabled={isLoading || !message.trim()}
+            >
               <Copy className="size-4" />
               نسخ الرسالة
             </Button>
-            <Button variant="outline" className="h-11 rounded-2xl px-5">
+            <Button
+              variant="outline"
+              className="h-11 rounded-2xl px-5"
+              onClick={() => textAreaRef.current?.focus()}
+              disabled={isLoading}
+            >
               <PencilLine className="size-4" />
               تعديل الرسالة
             </Button>
@@ -77,8 +177,8 @@ export default function FollowUpPage() {
               نبرة مهنية وواضحة
             </h3>
             <p className="mt-3 text-sm leading-7 text-muted-foreground">
-              لأن الاتفاق الأصلي كان مهنيًا وواضحًا، فهذه الصياغة تذكّر العميل
-              بالمبلغ المتبقي وموعد السداد بدون ضغط زائد.
+              لأن الرسالة تُبنى على نبرة الاتفاق وحالة الدفع وموعد الاستحقاق،
+              فهي تحافظ على الأسلوب المهني وتوضح المطلوب بدون إحراج.
             </p>
           </div>
 
