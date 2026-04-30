@@ -11,13 +11,17 @@ import {
   defaultTemporaryInvoiceData,
   getStoredExtraction,
   getStoredInvoice,
+  type TemporaryExtractionData,
   type TemporaryInvoiceData,
 } from "@/lib/client-storage";
 import type { FollowUpInput } from "@/lib/ai/types";
 
 export default function FollowUpPage() {
-  const [invoice] = useState<TemporaryInvoiceData>(
-    () => getStoredInvoice() ?? defaultTemporaryInvoiceData,
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [invoice, setInvoice] =
+    useState<TemporaryInvoiceData>(defaultTemporaryInvoiceData);
+  const [extraction, setExtraction] = useState<TemporaryExtractionData | null>(
+    null,
   );
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -28,9 +32,29 @@ export default function FollowUpPage() {
   useEffect(() => {
     let isActive = true;
 
-    async function loadFollowUpMessage() {
-      const extraction = getStoredExtraction();
+    queueMicrotask(() => {
+      if (!isActive) {
+        return;
+      }
 
+      setInvoice(getStoredInvoice() ?? defaultTemporaryInvoiceData);
+      setExtraction(getStoredExtraction());
+      setIsHydrated(true);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) {
+      return;
+    }
+
+    let isActive = true;
+
+    async function loadFollowUpMessage() {
       const followUpInput: FollowUpInput = {
         clientName: invoice.clientName ?? null,
         service: invoice.serviceName ?? null,
@@ -90,7 +114,7 @@ export default function FollowUpPage() {
     return () => {
       isActive = false;
     };
-  }, [invoice, showToast]);
+  }, [extraction, invoice, isHydrated, showToast]);
 
   async function handleCopyMessage() {
     if (!message.trim()) {

@@ -31,11 +31,30 @@ import {
 
 export default function InvoiceDetailPage() {
   const params = useParams<{ invoiceId: string }>();
-  const [invoice, setInvoice] = useState<TemporaryInvoiceData>(
-    () => getStoredInvoice() ?? defaultTemporaryInvoiceData,
-  );
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [invoice, setInvoice] =
+    useState<TemporaryInvoiceData>(defaultTemporaryInvoiceData);
   const { showToast } = useToast();
-  const publicInvoiceUrl = buildPublicInvoiceUrl(invoice.token ?? "demo-token");
+  const publicInvoiceUrl = isHydrated
+    ? buildPublicInvoiceUrl(invoice.token ?? "demo-token")
+    : `/i/${invoice.token ?? "demo-token"}`;
+
+  useEffect(() => {
+    let isActive = true;
+
+    queueMicrotask(() => {
+      if (!isActive) {
+        return;
+      }
+
+      setInvoice(getStoredInvoice() ?? defaultTemporaryInvoiceData);
+      setIsHydrated(true);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     const invoiceId = params?.invoiceId;
@@ -85,7 +104,7 @@ export default function InvoiceDetailPage() {
         }
 
         const nextInvoice: TemporaryInvoiceData = {
-          ...invoice,
+          ...(getStoredInvoice() ?? defaultTemporaryInvoiceData),
           id: result.invoice.invoiceId,
           token: result.invoice.token,
           invoiceNumber: result.invoice.invoiceNumber,
@@ -117,7 +136,7 @@ export default function InvoiceDetailPage() {
     return () => {
       isActive = false;
     };
-  }, [invoice, params?.invoiceId]);
+  }, [params?.invoiceId]);
 
   async function handleCopyInvoiceLink() {
     const publicUrl = buildPublicInvoiceUrl();

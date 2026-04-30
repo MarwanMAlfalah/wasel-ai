@@ -21,15 +21,21 @@ import {
 
 export default function PublicInvoicePage() {
   const params = useParams<{ token: string }>();
-  const [invoice, setInvoice] = useState<TemporaryInvoiceData>(
-    () => getStoredInvoice() ?? defaultTemporaryInvoiceData,
-  );
+  const [invoice, setInvoice] =
+    useState<TemporaryInvoiceData>(defaultTemporaryInvoiceData);
 
   useEffect(() => {
     const token = params?.token ?? "demo-token";
+    const storedInvoice = getStoredInvoice() ?? defaultTemporaryInvoiceData;
     let isActive = true;
 
     async function loadAndTrackInvoice() {
+      queueMicrotask(() => {
+        if (isActive) {
+          setInvoice(storedInvoice);
+        }
+      });
+
       if (process.env.NEXT_PUBLIC_CONVEX_URL && token !== "demo-token") {
         try {
           const invoiceResponse = await fetch(`/api/public-invoices/${token}`);
@@ -58,7 +64,7 @@ export default function PublicInvoicePage() {
 
             if (isActive) {
               const nextInvoice: TemporaryInvoiceData = {
-                ...invoice,
+                ...storedInvoice,
                 id: invoicePayload.invoice.invoiceId,
                 token: invoicePayload.invoice.token,
                 invoiceNumber: invoicePayload.invoice.invoiceNumber,
@@ -103,7 +109,7 @@ export default function PublicInvoicePage() {
     return () => {
       isActive = false;
     };
-  }, [invoice, params?.token]);
+  }, [params?.token]);
 
   return (
     <div className="flex flex-1 items-center justify-center py-8 sm:py-12">

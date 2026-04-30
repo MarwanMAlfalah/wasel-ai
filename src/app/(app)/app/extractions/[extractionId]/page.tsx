@@ -24,6 +24,7 @@ import {
   mapCurrencyToLabel,
   setInvoiceViewed,
   setStoredInvoice,
+  type TemporaryExtractionData,
   type TemporaryInvoiceData,
 } from "@/lib/client-storage";
 
@@ -116,18 +117,41 @@ function parseAmount(value: string, fallback: number) {
 export default function ExtractionReviewPage() {
   const router = useRouter();
   const { showToast } = useToast();
-  const storedExtraction = getStoredExtraction();
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [storedExtraction, setStoredExtraction] =
+    useState<TemporaryExtractionData | null>(null);
   const [isProcessing, setIsProcessing] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [conversation] = useState(() => getStoredConversation() ?? "");
-  const [formData, setFormData] = useState<EditableInvoiceForm>(() => {
-    if (storedExtraction) {
-      return extractionToFormData(storedExtraction.data);
-    }
+  const [conversation, setConversation] = useState("");
+  const [formData, setFormData] = useState<EditableInvoiceForm>(() =>
+    invoiceToFormData(defaultTemporaryInvoiceData),
+  );
 
-    const storedInvoice = getStoredInvoice();
-    return invoiceToFormData(storedInvoice ?? defaultTemporaryInvoiceData);
-  });
+  useEffect(() => {
+    let isActive = true;
+
+    queueMicrotask(() => {
+      if (!isActive) {
+        return;
+      }
+
+      const nextStoredExtraction = getStoredExtraction();
+      const storedInvoice = getStoredInvoice();
+
+      setStoredExtraction(nextStoredExtraction);
+      setConversation(getStoredConversation() ?? "");
+      setFormData(
+        nextStoredExtraction
+          ? extractionToFormData(nextStoredExtraction.data)
+          : invoiceToFormData(storedInvoice ?? defaultTemporaryInvoiceData),
+      );
+      setIsHydrated(true);
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -273,7 +297,7 @@ export default function ExtractionReviewPage() {
         سيتم ربط هذه الخطوة بالذكاء الاصطناعي الحقيقي في المرحلة التالية.
       </section>
 
-      {storedExtraction?.fallbackUsed ? (
+      {isHydrated && storedExtraction?.fallbackUsed ? (
         <section className="rounded-[1.75rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-7 text-amber-800 shadow-[0_20px_60px_-52px_rgba(146,98,10,0.16)]">
           تم استخدام تحليل تجريبي مؤقت بسبب تعذر الاتصال بالذكاء الاصطناعي
         </section>

@@ -24,10 +24,26 @@ import {
 } from "@/lib/client-storage";
 
 export default function DashboardPage() {
-  const [invoice, setInvoice] = useState<TemporaryInvoiceData>(
-    () => getStoredInvoice() ?? defaultTemporaryInvoiceData,
-  );
-  const [invoiceViewed, setInvoiceViewed] = useState(() => getInvoiceViewed());
+  const [invoice, setInvoice] =
+    useState<TemporaryInvoiceData>(defaultTemporaryInvoiceData);
+  const [invoiceViewed, setInvoiceViewed] = useState(false);
+
+  useEffect(() => {
+    let isActive = true;
+
+    queueMicrotask(() => {
+      if (!isActive) {
+        return;
+      }
+
+      setInvoice(getStoredInvoice() ?? defaultTemporaryInvoiceData);
+      setInvoiceViewed(getInvoiceViewed());
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
