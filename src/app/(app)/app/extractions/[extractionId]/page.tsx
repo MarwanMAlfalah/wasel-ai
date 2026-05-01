@@ -277,7 +277,7 @@ export default function ExtractionReviewPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:space-y-7">
       <PageHeader
         title="مراجعة التفاصيل المستخرجة"
         description="هذه معاينة لرحلة المعالجة والمراجعة قبل إنشاء الفاتورة."
@@ -295,23 +295,23 @@ export default function ExtractionReviewPage() {
         }
       />
 
-      <section className="rounded-[1.75rem] border border-dashed border-primary/20 bg-primary/5 px-5 py-4 text-sm leading-7 text-muted-foreground shadow-[0_20px_60px_-52px_rgba(0,72,54,0.18)]">
-        سيتم ربط هذه الخطوة بالذكاء الاصطناعي الحقيقي في المرحلة التالية.
+      <section className="rounded-[1.7rem] border border-dashed border-primary/18 bg-[linear-gradient(180deg,rgba(0,122,90,0.06),rgba(255,255,255,0.86))] px-5 py-4 text-sm leading-7 text-muted-foreground shadow-[0_18px_48px_-44px_rgba(0,72,54,0.15)]">
+        هذه الشاشة مخصصة للمراجعة الهادئة قبل إصدار الفاتورة النهائية.
       </section>
 
       {isHydrated && storedExtraction?.fallbackUsed ? (
-        <section className="rounded-[1.75rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm leading-7 text-amber-800 shadow-[0_20px_60px_-52px_rgba(146,98,10,0.16)]">
+        <section className="rounded-[1.7rem] border border-amber-200/80 bg-amber-50/85 px-5 py-4 text-sm leading-7 text-amber-800 shadow-[0_18px_48px_-44px_rgba(146,98,10,0.14)]">
           تم استخدام تحليل تجريبي مؤقت بسبب تعذر الاتصال بالذكاء الاصطناعي
         </section>
       ) : null}
 
-      <section className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+      <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
         <ProcessingChecklist completedCount={isProcessing ? 3 : 7} activeIndex={isProcessing ? 3 : 6} />
-        <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
+        <div className="rounded-[1.8rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.94))] p-5 shadow-[0_20px_56px_-48px_rgba(0,72,54,0.22)] sm:p-6">
           <p className="text-sm font-medium text-muted-foreground">
             نص المحادثة الحالي
           </p>
-          <p className="mt-3 whitespace-pre-line text-sm leading-8 text-foreground">
+          <p className="mt-3 whitespace-pre-line rounded-[1.35rem] border border-input/70 bg-background/85 px-4 py-4 text-sm leading-8 text-foreground">
             {conversation || "لم يتم العثور على نص محفوظ، لذلك نعرض بيانات تجريبية فقط."}
           </p>
         </div>
@@ -353,8 +353,8 @@ export default function ExtractionReviewPage() {
             />
           </section>
 
-          <section className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
-            <div className="flex items-center justify-between gap-4">
+          <section className="rounded-[1.85rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.94))] p-5 shadow-[0_20px_56px_-48px_rgba(0,72,54,0.22)] sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground">
                   حقول المراجعة والتعديل
@@ -366,7 +366,7 @@ export default function ExtractionReviewPage() {
               <StatusBadge status={formData.paymentStatus} />
             </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-12">
               {reviewFields.map((field) => {
                 const Icon = field.icon;
                 const value = formData[field.key];
@@ -374,14 +374,14 @@ export default function ExtractionReviewPage() {
                 return (
                   <label
                     key={field.label}
-                    className={`space-y-2 ${field.fullWidth ? "md:col-span-2" : ""}`}
+                    className={`space-y-2 ${field.fullWidth ? "md:col-span-2 xl:col-span-12" : "xl:col-span-6"}`}
                   >
                     <span className="flex items-center gap-2 text-sm font-bold text-foreground">
                       <Icon className="size-4 text-primary" />
                       {field.label}
                     </span>
 
-                    <div className="rounded-[1.25rem] border border-input bg-background px-4 py-3 shadow-sm">
+                    <div className="rounded-[1.3rem] border border-input bg-background/90 px-4 py-3 shadow-sm">
                       {field.key === "paymentStatus" ? (
                         <select
                           value={formData.paymentStatus}

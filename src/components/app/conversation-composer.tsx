@@ -71,9 +71,23 @@ export function ConversationComposer() {
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-      <section className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
-        <label htmlFor="conversation" className="text-sm font-bold text-foreground">
+    <div className="grid gap-5 xl:grid-cols-[1.18fr_0.82fr]">
+      <section className="rounded-[1.85rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.95))] p-5 shadow-[0_22px_60px_-48px_rgba(0,72,54,0.24)] sm:p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <label htmlFor="conversation" className="text-sm font-bold text-foreground">
+            نص المحادثة
+          </label>
+          <span className="inline-flex items-center rounded-full border border-primary/10 bg-primary/5 px-3 py-1 text-xs font-bold text-primary">
+            يفضل تضمين السعر والدفعات والموعد
+          </span>
+        </div>
+
+        <p className="mt-3 text-sm leading-7 text-muted-foreground">
+          الصق المحادثة كما هي، وواصل يرتب التفاصيل المهمة داخل شاشة مراجعة
+          واضحة قبل إنشاء الفاتورة.
+        </p>
+
+        <label htmlFor="conversation" className="sr-only">
           نص المحادثة
         </label>
         <textarea
@@ -81,10 +95,10 @@ export function ConversationComposer() {
           value={conversation}
           onChange={(event) => setConversation(event.target.value)}
           placeholder="الصق هنا محادثة العميل كما هي، وسنستخدمها لاحقًا لاستخراج تفاصيل الاتفاق."
-          className="mt-3 min-h-[320px] w-full rounded-[1.5rem] border border-input bg-background px-4 py-4 text-sm leading-8 text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10"
+          className="mt-4 min-h-[340px] w-full rounded-[1.65rem] border border-input bg-background/90 px-4 py-4 text-sm leading-8 text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary focus:ring-4 focus:ring-primary/10"
         />
 
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           <Button
             type="button"
             variant="outline"
@@ -117,7 +131,7 @@ export function ConversationComposer() {
       </section>
 
       <div className="space-y-4">
-        <aside className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
+        <aside className="rounded-[1.8rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.95))] p-5 shadow-[0_22px_54px_-48px_rgba(0,72,54,0.22)]">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Sparkles className="size-5" />
@@ -136,7 +150,7 @@ export function ConversationComposer() {
           </ul>
         </aside>
 
-        <aside className="rounded-[1.75rem] border border-dashed border-primary/20 bg-primary/5 p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.18)]">
+        <aside className="rounded-[1.8rem] border border-dashed border-primary/18 bg-[linear-gradient(180deg,rgba(0,122,90,0.06),rgba(255,255,255,0.82))] p-5 shadow-[0_20px_54px_-48px_rgba(0,72,54,0.16)]">
           <div className="flex items-start gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-primary shadow-sm">
               <ShieldCheck className="size-5" />

@@ -20,7 +20,7 @@ export function ProcessingChecklist({
   activeIndex?: number;
 }) {
   return (
-    <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_18px_60px_-54px_rgba(0,72,54,0.28)]">
+    <div className="rounded-[1.75rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.95))] p-5 shadow-[0_18px_54px_-48px_rgba(0,72,54,0.22)]">
       <div className="space-y-1">
         <p className="text-sm font-medium text-muted-foreground">
           مراحل المعالجة
@@ -41,10 +41,10 @@ export function ProcessingChecklist({
               className={cn(
                 "flex items-center gap-3 rounded-2xl border px-4 py-3 transition-colors",
                 isCompleted
-                  ? "border-emerald-100 bg-emerald-50/70"
+                  ? "border-emerald-100 bg-emerald-50/75"
                   : isActive
-                    ? "border-primary/20 bg-primary/5"
-                    : "border-border/80 bg-muted/40",
+                    ? "border-primary/20 bg-primary/6"
+                    : "border-border/80 bg-white/70",
               )}
             >
               <span

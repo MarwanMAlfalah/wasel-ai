@@ -336,7 +336,7 @@ export default function InvoiceDetailPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:space-y-7">
       <PageHeader
         title="الفاتورة جاهزة"
         description="هذه صفحة ثابتة لعرض شكل الفاتورة الداخلية والرابط الذكي والملخص المالي قبل ربطها بالبيانات الفعلية."
@@ -344,7 +344,7 @@ export default function InvoiceDetailPage() {
       />
 
       <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
+        <div className="rounded-[1.9rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.95))] p-5 shadow-[0_22px_62px_-50px_rgba(0,72,54,0.22)] sm:p-6">
           <div className="flex items-start justify-between gap-4 border-b border-border/70 pb-5">
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">
@@ -391,21 +391,21 @@ export default function InvoiceDetailPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
+          <div className="rounded-[1.9rem] border border-white/70 bg-[linear-gradient(135deg,rgba(0,122,90,0.96),rgba(11,96,74,0.92))] p-5 text-primary-foreground shadow-[0_28px_70px_-44px_rgba(0,72,54,0.55)] sm:p-6">
             <div className="space-y-2">
-              <h3 className="text-lg font-bold text-foreground">
+              <h3 className="text-lg font-bold text-primary-foreground">
                 رابط الفاتورة الذكي
               </h3>
-              <p className="text-sm leading-7 text-muted-foreground">
+              <p className="text-sm leading-7 text-primary-foreground/82">
                 أرسل الرابط للعميل. إذا فتحه، بنوضح لك أن الفاتورة تمت مشاهدتها.
               </p>
             </div>
 
-            <div className="mt-4 rounded-[1.25rem] border border-dashed border-primary/20 bg-primary/5 px-4 py-4">
-              <p className="text-sm font-bold text-foreground">
+            <div className="mt-4 rounded-[1.35rem] border border-white/12 bg-white/10 px-4 py-4 backdrop-blur">
+              <p className="text-sm font-bold text-primary-foreground">
                 {publicInvoiceUrl}
               </p>
-              <p className="mt-2 text-sm text-muted-foreground">
+              <p className="mt-2 text-sm text-primary-foreground/82">
                 {invoice.viewCount && invoice.viewCount > 0
                   ? "العميل شاهد الفاتورة"
                   : "لم يشاهدها العميل بعد"}
@@ -415,23 +415,33 @@ export default function InvoiceDetailPage() {
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <Button
                 variant="outline"
-                className="h-11 rounded-2xl"
+                className="h-11 rounded-2xl border-white/20 bg-white/10 text-primary-foreground hover:bg-white/16 hover:text-primary-foreground"
                 onClick={handleCopyInvoiceLink}
               >
                 <Copy className="size-4" />
                 انسخ رابط الفاتورة
               </Button>
-              <Button asChild className="h-11 rounded-2xl">
+              <Button
+                asChild
+                className="h-11 rounded-2xl bg-white text-primary hover:bg-white/90"
+              >
                 <Link href={`/i/${invoice.token ?? "demo-token"}`}>
                   <ExternalLink className="size-4" />
                   فتح رابط الفاتورة
                 </Link>
               </Button>
-              <Button variant="outline" className="h-11 rounded-2xl">
+              <Button
+                variant="outline"
+                className="h-11 rounded-2xl border-white/20 bg-white/10 text-primary-foreground hover:bg-white/16 hover:text-primary-foreground"
+              >
                 <Download className="size-4" />
                 تحميل PDF
               </Button>
-              <Button asChild variant="outline" className="h-11 rounded-2xl">
+              <Button
+                asChild
+                variant="outline"
+                className="h-11 rounded-2xl border-white/20 bg-white/10 text-primary-foreground hover:bg-white/16 hover:text-primary-foreground"
+              >
                 <Link href={`/app/invoices/${invoice.id ?? "demo"}/follow-up`}>
                   <MessageSquareMore className="size-4" />
                   نسخ رسالة واتساب
@@ -465,7 +475,7 @@ export default function InvoiceDetailPage() {
           />
         </div>
 
-        <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
+        <div className="rounded-[1.9rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.95))] p-5 shadow-[0_22px_60px_-50px_rgba(0,72,54,0.22)] sm:p-6">
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">
@@ -481,7 +491,7 @@ export default function InvoiceDetailPage() {
           </div>
 
           {showFallbackNote ? (
-            <p className="mt-4 rounded-[1.25rem] border border-dashed border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-800">
+            <p className="mt-4 rounded-[1.25rem] border border-dashed border-amber-200/80 bg-amber-50/85 px-4 py-3 text-sm leading-7 text-amber-800">
               يتم حفظ المصاريف مؤقتًا على هذا الجهاز
             </p>
           ) : null}
@@ -541,7 +551,7 @@ export default function InvoiceDetailPage() {
             </label>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-5 flex justify-start">
             <Button
               className="h-11 rounded-2xl px-5"
               onClick={handleSaveExpense}
@@ -560,7 +570,7 @@ export default function InvoiceDetailPage() {
               expenses.map((expense) => (
                 <div
                   key={expense.id}
-                  className="rounded-[1.25rem] border border-input bg-background px-4 py-4"
+                  className="rounded-[1.25rem] border border-input bg-background/90 px-4 py-4 shadow-sm"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div className="space-y-1">
@@ -601,7 +611,7 @@ function InvoiceLine({
 }) {
   return (
     <div
-      className={`rounded-[1.25rem] border border-input bg-background px-4 py-4 ${
+      className={`rounded-[1.25rem] border border-input bg-background/90 px-4 py-4 ${
         fullWidth ? "sm:col-span-2" : ""
       }`}
     >
@@ -623,7 +633,7 @@ function InvoiceAmount({
   emphasis?: boolean;
 }) {
   return (
-    <div className="rounded-[1.25rem] border border-input bg-background px-4 py-4">
+    <div className="rounded-[1.25rem] border border-input bg-background/90 px-4 py-4">
       <p className="text-sm font-medium text-muted-foreground">{label}</p>
       <div className="mt-2 flex items-center gap-2">
         <ArabicNumber
@@ -646,7 +656,7 @@ function InfoCard({
   lines: string[];
 }) {
   return (
-    <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
+    <div className="rounded-[1.8rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.95))] p-5 shadow-[0_20px_54px_-48px_rgba(0,72,54,0.2)]">
       <div className="flex items-center gap-3">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           {icon}
@@ -655,7 +665,12 @@ function InfoCard({
       </div>
       <ul className="mt-4 space-y-3 text-sm leading-7 text-muted-foreground">
         {lines.map((line) => (
-          <li key={line}>{line}</li>
+          <li
+            key={line}
+            className="rounded-[1.15rem] border border-white/70 bg-background/80 px-4 py-3"
+          >
+            {line}
+          </li>
         ))}
       </ul>
     </div>
@@ -668,7 +683,7 @@ function FinancialSummaryCard({
   summary: TemporaryFinancialSummary;
 }) {
   return (
-    <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
+    <div className="rounded-[1.8rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.95))] p-5 shadow-[0_20px_54px_-48px_rgba(0,72,54,0.2)]">
       <div className="flex items-center gap-3">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <WalletCards className="size-5" />
@@ -676,7 +691,7 @@ function FinancialSummaryCard({
         <h3 className="text-lg font-bold text-foreground">الملخص المالي</h3>
       </div>
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 grid gap-3">
         <SummaryAmountRow
           label="قيمة المشروع"
           value={summary.totalAmount}
@@ -720,10 +735,14 @@ function SummaryAmountRow({
   emphasis?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl bg-background px-4 py-3">
+    <div className="flex items-center justify-between gap-4 rounded-[1.2rem] border border-white/70 bg-background/85 px-4 py-3 shadow-sm">
       <span className="text-sm text-muted-foreground">{label}</span>
       <span className={emphasis ? "text-foreground" : "text-foreground"}>
-        <span className="inline-flex items-center gap-2 text-sm font-bold">
+        <span
+          className={`inline-flex items-center gap-2 text-sm font-bold ${
+            emphasis ? "text-lg font-extrabold" : ""
+          }`}
+        >
           <ArabicNumber value={value} />
           <span>{currency}</span>
         </span>

@@ -113,49 +113,92 @@ export default function PublicInvoicePage() {
 
   return (
     <div className="flex flex-1 items-center justify-center py-8 sm:py-12">
-      <section className="w-full max-w-3xl rounded-[2rem] border border-border/70 bg-card p-5 shadow-[0_28px_80px_-48px_rgba(0,72,54,0.32)] sm:p-7">
-        <div className="flex flex-col gap-4 border-b border-border/70 pb-5 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-muted-foreground">
-              فاتورة من مروان
-            </p>
-            <h1 className="text-3xl font-extrabold tracking-tight text-foreground">
-              فاتورة من مروان
-            </h1>
-            <p className="text-sm leading-7 text-muted-foreground">
-              هذه معاينة ثابتة للشكل العام للرابط العام الذي يستلمه العميل.
-            </p>
+      <section className="w-full max-w-4xl rounded-[2.15rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(244,250,247,0.95))] p-5 shadow-[0_32px_82px_-54px_rgba(0,72,54,0.3)] sm:p-7">
+        <div className="rounded-[1.9rem] bg-[linear-gradient(135deg,rgba(0,122,90,0.96),rgba(11,96,74,0.92))] px-5 py-6 text-primary-foreground shadow-[0_28px_64px_-42px_rgba(0,72,54,0.6)] sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-primary-foreground/76">
+                فاتورة من {invoice.freelancerName}
+              </p>
+              <h1 className="text-3xl font-extrabold tracking-tight text-primary-foreground">
+                طلب دفع منظم وواضح
+              </h1>
+              <p className="max-w-2xl text-sm leading-7 text-primary-foreground/84">
+                هذه صفحة الفاتورة التي يستلمها العميل للاطلاع على تفاصيل الخدمة
+                والمبلغ وحالة السداد بشكل بسيط ومهني.
+              </p>
+            </div>
+            <StatusBadge
+              status={invoice.paymentStatus}
+              className="border-white/15 bg-white/12 text-primary-foreground"
+            />
           </div>
-          <StatusBadge status={invoice.paymentStatus} />
         </div>
 
-        <div className="mt-4 rounded-[1.25rem] border border-teal-200 bg-teal-50 px-4 py-3 text-sm font-medium text-teal-700">
+        <div className="mt-5 rounded-[1.35rem] border border-teal-200/80 bg-teal-50/90 px-4 py-3 text-sm font-medium text-teal-700">
           تم تسجيل مشاهدة الفاتورة
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
-          <PublicLine label="العميل" value={invoice.clientName} />
-          <PublicLine label="الخدمة" value={invoice.serviceName} fullWidth />
-          <PublicAmount
-            label="الإجمالي"
-            value={invoice.projectValue}
-            currencyShort={invoice.currencyShort}
-          />
-          <PublicAmount
-            label="المدفوع"
-            value={invoice.amountPaid}
-            currencyShort={invoice.currencyShort}
-          />
-          <PublicAmount
-            label="المتبقي"
-            value={invoice.amountRemaining}
-            currencyShort={invoice.currencyShort}
-          />
-          <PublicLine label="موعد الدفع" value={invoice.dueDate} />
-          <div className="sm:col-span-2 rounded-[1.25rem] border border-input bg-muted/40 px-4 py-4">
-            <p className="text-sm font-medium text-muted-foreground">الحالة</p>
-            <div className="mt-2">
+        <div className="mt-6 grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
+          <div className="rounded-[1.75rem] border border-white/70 bg-white/88 p-5 shadow-[0_18px_48px_-42px_rgba(0,72,54,0.16)]">
+            <div className="flex items-center justify-between gap-3 border-b border-border/70 pb-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  ملخص الفاتورة
+                </p>
+                <p className="mt-1 text-xl font-extrabold text-foreground">
+                  {invoice.invoiceNumber}
+                </p>
+              </div>
               <StatusBadge status={invoice.paymentStatus} />
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <PublicLine label="العميل" value={invoice.clientName} />
+              <PublicLine label="الخدمة" value={invoice.serviceName} fullWidth />
+              <PublicAmount
+                label="الإجمالي"
+                value={invoice.projectValue}
+                currencyShort={invoice.currencyShort}
+              />
+              <PublicAmount
+                label="المدفوع"
+                value={invoice.amountPaid}
+                currencyShort={invoice.currencyShort}
+              />
+              <PublicAmount
+                label="المتبقي"
+                value={invoice.amountRemaining}
+                currencyShort={invoice.currencyShort}
+              />
+              <PublicLine label="موعد الدفع" value={invoice.dueDate} />
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="rounded-[1.75rem] border border-white/70 bg-white/88 p-5 shadow-[0_18px_48px_-42px_rgba(0,72,54,0.16)]">
+              <p className="text-sm font-medium text-muted-foreground">الحالة</p>
+              <div className="mt-3 flex items-center justify-between gap-4 rounded-[1.3rem] border border-border/70 bg-background/90 px-4 py-4">
+                <div className="space-y-1">
+                  <p className="text-lg font-bold text-foreground">
+                    {invoice.paymentStatus}
+                  </p>
+                  <p className="text-sm leading-7 text-muted-foreground">
+                    راجع المبلغ المتبقي وموعد الاستحقاق قبل تأكيد السداد.
+                  </p>
+                </div>
+                <MessageSquareMore className="size-5 text-primary" />
+              </div>
+            </div>
+
+            <div className="rounded-[1.75rem] border border-dashed border-primary/18 bg-[linear-gradient(180deg,rgba(0,122,90,0.06),rgba(255,255,255,0.84))] p-5 shadow-[0_18px_44px_-40px_rgba(0,72,54,0.14)]">
+              <p className="text-sm font-bold text-foreground">
+                ملاحظة مهمة للعميل
+              </p>
+              <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                إذا تم التحويل بالفعل، يكفي إرسال تأكيد للمستقل حتى يتم تحديث
+                حالة الفاتورة والمتابعة بشكل أسرع.
+              </p>
             </div>
           </div>
         </div>
@@ -174,8 +217,9 @@ export default function PublicInvoicePage() {
           </Button>
         </div>
 
-        <p className="mt-5 text-center text-sm leading-7 text-muted-foreground">
-          هذه الفاتورة تم إنشاؤها بواسطة واصل AI بناءً على اتفاق الطرفين.
+        <p className="mt-6 text-center text-sm leading-7 text-muted-foreground">
+          هذه الفاتورة تم إنشاؤها بواسطة واصل AI لتقديم تفاصيل الاتفاق بشكل واضح
+          ومرتب للطرفين.
         </p>
       </section>
     </div>
@@ -193,7 +237,7 @@ function PublicLine({
 }) {
   return (
     <div
-      className={`rounded-[1.25rem] border border-input bg-background px-4 py-4 ${
+      className={`rounded-[1.25rem] border border-input bg-background/90 px-4 py-4 ${
         fullWidth ? "sm:col-span-2" : ""
       }`}
     >
@@ -213,7 +257,7 @@ function PublicAmount({
   currencyShort: string;
 }) {
   return (
-    <div className="rounded-[1.25rem] border border-input bg-background px-4 py-4">
+    <div className="rounded-[1.25rem] border border-input bg-background/90 px-4 py-4">
       <div className="flex items-center gap-2 text-primary">
         <CircleDollarSign className="size-4" />
         <p className="text-sm font-medium text-muted-foreground">{label}</p>

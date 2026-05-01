@@ -210,7 +210,7 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:space-y-7">
       <PageHeader
         title="لوحة التحكم"
         description="هنا تشوف حالة مشروعك الحالية بشكل سريع: قيمة الاتفاق، المدفوع، المتبقي، المصاريف، والربح المتوقع قبل إرسال أي متابعة."
@@ -222,46 +222,52 @@ export default function DashboardPage() {
         }
       />
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-12">
         <StatCard
           title="قيمة المشروع"
           value={<CurrencyValue value={displaySummary.totalAmount} currency={displaySummary.currency} />}
           hint="إجمالي الاتفاق قبل احتساب المصاريف."
           icon={<ReceiptText className="size-5" />}
+          className="xl:col-span-3"
         />
         <StatCard
           title="المدفوع"
           value={<CurrencyValue value={displaySummary.paidAmount} currency={displaySummary.currency} />}
           hint="إجمالي المبلغ المسجل حتى الآن."
           icon={<CircleDollarSign className="size-5" />}
+          className="xl:col-span-3"
         />
         <StatCard
           title="المتبقي"
           value={<CurrencyValue value={displaySummary.remainingAmount} currency={displaySummary.currency} />}
           hint="المبلغ المتوقع متابعته مع العميل."
           icon={<WalletCards className="size-5" />}
+          className="xl:col-span-3"
         />
         <StatCard
           title="مصاريف المشروع"
           value={<CurrencyValue value={displaySummary.totalExpenses} currency={displaySummary.currency} />}
           hint="المصاريف المسجلة على الفاتورة الحالية."
           icon={<ChartNoAxesColumnIncreasing className="size-5" />}
+          className="xl:col-span-3"
         />
         <StatCard
           title="الربح المتوقع"
           value={<CurrencyValue value={displaySummary.expectedProfit} currency={displaySummary.currency} />}
           hint="قيمة المشروع بعد خصم المصاريف."
           icon={<ChartNoAxesColumnIncreasing className="size-5" />}
+          className="xl:col-span-4"
         />
         <StatCard
           title="حالة الفاتورة"
           value={invoiceStatusText}
           hint="تتحدث هذه البطاقة حسب فتح الرابط العام من صفحة العميل."
           icon={<Eye className="size-5" />}
+          className="md:col-span-2 xl:col-span-8"
         />
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+      <section className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
         <AIInsightCard
           label="تنبيه واصل"
           title={hasInvoice ? "قراءة سريعة لوضع المشروع" : "ابدأ بأول فاتورة"}
@@ -289,7 +295,7 @@ export default function DashboardPage() {
           }
         />
 
-        <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
+        <div className="rounded-[1.85rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.95))] p-5 shadow-[0_20px_56px_-48px_rgba(0,72,54,0.22)] sm:p-6">
           <div className="flex items-center justify-between gap-4">
             <div className="space-y-1">
               <p className="text-sm font-medium text-muted-foreground">
@@ -304,7 +310,7 @@ export default function DashboardPage() {
             />
           </div>
 
-          <dl className="mt-5 space-y-4 text-sm">
+          <dl className="mt-5 space-y-3.5 text-sm">
             <SummaryRow
               label="الخدمة"
               value={hasInvoice ? invoice.serviceName : "أضف محادثة جديدة لبدء أول فاتورة"}
@@ -342,7 +348,7 @@ function CurrencyValue({
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl bg-muted/40 px-4 py-3">
+    <div className="flex items-center justify-between gap-4 rounded-[1.2rem] border border-white/70 bg-background/85 px-4 py-3 shadow-sm">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="text-right font-bold text-foreground">{value}</dd>
     </div>

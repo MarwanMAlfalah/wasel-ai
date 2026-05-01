@@ -126,15 +126,15 @@ export default function FollowUpPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:space-y-7">
       <PageHeader
         title="رسالة متابعة جاهزة"
         description="واصل كتب لك رسالة مناسبة لنبرة الاتفاق. انسخها وأرسلها للعميل."
         badge={<ToneBadge tone="مهني" />}
       />
 
-      <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
-        <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
+      <section className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
+        <div className="rounded-[1.85rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.95))] p-5 shadow-[0_20px_56px_-48px_rgba(0,72,54,0.22)] sm:p-6">
           <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">
               الرسالة المقترحة
@@ -145,29 +145,29 @@ export default function FollowUpPage() {
           </div>
 
           {fallbackUsed ? (
-            <div className="mt-4 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-800">
+            <div className="mt-4 rounded-[1.25rem] border border-amber-200/80 bg-amber-50/85 px-4 py-3 text-sm leading-7 text-amber-800">
               تم توليد رسالة افتراضية مؤقتًا بسبب تعذر الاتصال بالذكاء الاصطناعي
             </div>
           ) : null}
 
           {isLoading ? (
-            <div className="mt-4 rounded-[1.5rem] border border-input bg-background px-4 py-5">
+            <div className="mt-4 rounded-[1.5rem] border border-input bg-background/90 px-4 py-5">
               <p className="text-sm leading-8 text-muted-foreground">
                 واصل يكتب لك رسالة مناسبة…
               </p>
             </div>
           ) : (
-            <div className="mt-4 rounded-[1.5rem] border border-input bg-background px-4 py-4">
+            <div className="mt-4 rounded-[1.55rem] border border-input bg-background/90 px-4 py-4 shadow-inner">
               <textarea
                 ref={textAreaRef}
                 value={message}
                 onChange={(event) => setMessage(event.target.value)}
-                className="min-h-[220px] w-full resize-none bg-transparent text-sm leading-8 text-foreground outline-none"
+                className="min-h-[280px] w-full resize-none bg-transparent text-sm leading-8 text-foreground outline-none"
               />
             </div>
           )}
 
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <Button
               className="h-11 rounded-2xl px-5"
               onClick={handleCopyMessage}
@@ -193,7 +193,7 @@ export default function FollowUpPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
+          <div className="rounded-[1.8rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.95))] p-5 shadow-[0_20px_54px_-48px_rgba(0,72,54,0.2)]">
             <p className="text-sm font-medium text-muted-foreground">
               سبب هذا الأسلوب
             </p>
@@ -206,7 +206,7 @@ export default function FollowUpPage() {
             </p>
           </div>
 
-          <div className="rounded-[1.75rem] border border-dashed border-primary/20 bg-primary/5 p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.18)]">
+          <div className="rounded-[1.8rem] border border-dashed border-primary/18 bg-[linear-gradient(180deg,rgba(0,122,90,0.06),rgba(255,255,255,0.84))] p-5 shadow-[0_20px_54px_-48px_rgba(0,72,54,0.16)]">
             <p className="text-sm font-bold text-foreground">ملاحظة واصل</p>
             <p className="mt-2 text-sm leading-7 text-muted-foreground">
               لاحقًا ستتغير هذه الرسالة تلقائيًا بحسب حالة الفاتورة، موعد
