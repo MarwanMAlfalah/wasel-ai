@@ -17,13 +17,25 @@ const requestSchema = z.object({
   }),
 });
 
+export const runtime = "nodejs";
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
     const parsedBody = requestSchema.parse(body);
     const result = await generateFollowUpMessage(parsedBody.invoiceData);
 
-    return NextResponse.json(result);
+    if (process.env.NODE_ENV === "development") {
+      return NextResponse.json(result);
+    }
+
+    const publicResult = {
+      message: result.message,
+      provider: result.provider,
+      fallbackUsed: result.fallbackUsed,
+    };
+
+    return NextResponse.json(publicResult);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

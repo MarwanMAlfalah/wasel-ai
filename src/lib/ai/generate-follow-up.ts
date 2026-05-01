@@ -1,7 +1,9 @@
 import {
+  createProviderFallbackDiagnostic,
   getProviderImplementation,
   getSelectedAIProvider,
   isProviderConfigured,
+  logProviderFallback,
 } from "@/lib/ai/provider";
 import type {
   FollowUpInput,
@@ -83,6 +85,7 @@ async function runProviderFollowUp(input: FollowUpInput) {
   const rawText = await generate({
     systemPrompt: followUpSystemPrompt,
     userPrompt,
+    responseMode: "text",
   });
 
   const message = sanitizeMessage(rawText);
@@ -107,6 +110,8 @@ export async function generateFollowUpMessage(
       message: buildFallbackFollowUpMessage(input),
       provider: "mock",
       fallbackUsed: false,
+      errorCode: null,
+      errorMessage: null,
     };
   }
 
@@ -117,12 +122,19 @@ export async function generateFollowUpMessage(
       message: result.message,
       provider: result.provider,
       fallbackUsed: false,
+      errorCode: null,
+      errorMessage: null,
     };
-  } catch {
+  } catch (error) {
+    const diagnostic = createProviderFallbackDiagnostic(selectedProvider, error);
+    logProviderFallback("follow-up", diagnostic);
+
     return {
       message: buildFallbackFollowUpMessage(input),
       provider: "mock",
       fallbackUsed: true,
+      errorCode: diagnostic.errorCode,
+      errorMessage: diagnostic.errorMessage,
     };
   }
 }

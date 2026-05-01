@@ -1,7 +1,9 @@
 import {
+  createProviderFallbackDiagnostic,
   getProviderImplementation,
   getSelectedAIProvider,
   isProviderConfigured,
+  logProviderFallback,
 } from "@/lib/ai/provider";
 import { extractWithMock } from "@/lib/ai/mock";
 import {
@@ -132,11 +134,23 @@ function normalizeExtractedAgreement(data: ExtractedAgreement): ExtractedAgreeme
   };
 }
 
-async function parseProviderResponse(rawText: string) {
+function parseProviderResponse(rawText: string) {
   const jsonPayload = extractJsonPayload(rawText);
-  const parsed = JSON.parse(jsonPayload) as unknown;
-  const validated = extractedAgreementSchema.parse(parsed);
-  return normalizeExtractedAgreement(validated);
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(jsonPayload) as unknown;
+  } catch {
+    throw new Error("AI response did not contain valid JSON");
+  }
+
+  const validated = extractedAgreementSchema.safeParse(parsed);
+
+  if (!validated.success) {
+    throw new Error(validated.error.issues[0]?.message ?? "Invalid JSON schema");
+  }
+
+  return normalizeExtractedAgreement(validated.data);
 }
 
 async function runProviderAttempt(
@@ -162,13 +176,14 @@ async function runProviderAttempt(
     const rawText = await generate({
       systemPrompt,
       userPrompt,
+      responseMode: "json",
     });
 
     return {
-      data: await parseProviderResponse(rawText),
+      data: parseProviderResponse(rawText),
       provider,
     };
-  } catch (firstError) {
+  } catch {
     const retryPrompt = `${userPrompt}
 
 The previous response was invalid or not parseable as valid JSON.
@@ -177,16 +192,13 @@ Return the same answer again as JSON only, matching the schema exactly, with no 
     const rawRetryText = await generate({
       systemPrompt,
       userPrompt: retryPrompt,
+      responseMode: "json",
     });
 
-    try {
-      return {
-        data: await parseProviderResponse(rawRetryText),
-        provider,
-      };
-    } catch {
-      throw firstError;
-    }
+    return {
+      data: parseProviderResponse(rawRetryText),
+      provider,
+    };
   }
 }
 
@@ -200,6 +212,8 @@ export async function extractAgreement(
       data: await extractWithMock(conversationText),
       provider: "mock",
       fallbackUsed: false,
+      errorCode: null,
+      errorMessage: null,
     };
   }
 
@@ -210,12 +224,19 @@ export async function extractAgreement(
       data: result.data,
       provider: result.provider,
       fallbackUsed: false,
+      errorCode: null,
+      errorMessage: null,
     };
-  } catch {
+  } catch (error) {
+    const diagnostic = createProviderFallbackDiagnostic(selectedProvider, error);
+    logProviderFallback("extract", diagnostic);
+
     return {
       data: await extractWithMock(conversationText),
       provider: "mock",
       fallbackUsed: true,
+      errorCode: diagnostic.errorCode,
+      errorMessage: diagnostic.errorMessage,
     };
   }
 }

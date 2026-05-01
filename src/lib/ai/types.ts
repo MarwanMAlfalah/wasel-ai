@@ -41,11 +41,14 @@ export type ExtractionResult = {
   data: ExtractedAgreement;
   provider: AIProviderName;
   fallbackUsed: boolean;
+  errorCode?: string | null;
+  errorMessage?: string | null;
 };
 
 export type GenerateJsonParams = {
   systemPrompt: string;
   userPrompt: string;
+  responseMode?: "json" | "text";
 };
 
 export type GenerateJsonHandler = (
@@ -68,4 +71,6 @@ export type FollowUpResult = {
   message: string;
   provider: AIProviderName;
   fallbackUsed: boolean;
+  errorCode?: string | null;
+  errorMessage?: string | null;
 };
