@@ -160,7 +160,7 @@ export function Sidebar() {
                 className="justify-start"
               />
               <p className="mt-3 text-xs leading-6 text-muted-foreground">
-                نسخة تجريبية للفريلانسر السعودي بواجهة مرتبة وواضحة.
+                مساحة عمل للفريلانسر العربي بواجهة مرتبة وواضحة.
               </p>
             </div>
           </div>

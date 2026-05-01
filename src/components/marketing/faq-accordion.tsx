@@ -49,7 +49,7 @@ export function FaqAccordion() {
           <motion.div
             key={item.question}
             layout
-            className="overflow-hidden rounded-[1.85rem] border border-[#E8E3D6] bg-white/94 shadow-[0_20px_50px_-42px_rgba(11,45,38,0.12)]"
+            className="overflow-hidden rounded-[1.95rem] border border-[#E1E8DF] bg-white/94 shadow-[0_20px_50px_-42px_rgba(20,53,46,0.12)]"
           >
             <button
               type="button"
@@ -65,7 +65,7 @@ export function FaqAccordion() {
               <motion.span
                 animate={{ rotate: isOpen ? 180 : 0 }}
                 transition={{ duration: 0.24 }}
-                className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[#EEF8F1] text-primary"
+                className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-[#EEF5F0] text-primary"
               >
                 <ChevronDown className="size-4" />
               </motion.span>

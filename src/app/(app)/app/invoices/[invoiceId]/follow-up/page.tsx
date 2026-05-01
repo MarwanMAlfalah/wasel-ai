@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ToneBadge } from "@/components/shared/tone-badge";
 import { useToast } from "@/components/shared/toast-provider";
 import { Button } from "@/components/ui/button";
+import type { FollowUpToneLabel } from "@/lib/ai/types";
 import {
   defaultTemporaryInvoiceData,
   getInvoiceViewStatus,
@@ -37,6 +38,11 @@ export default function FollowUpPage() {
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [fallbackUsed, setFallbackUsed] = useState(false);
+  const [toneLabel, setToneLabel] =
+    useState<FollowUpToneLabel>("نبرة مهنية وواضحة");
+  const [toneReason, setToneReason] = useState(
+    "الرسالة مبنية على حالة الدفع وموعد الاستحقاق ونبرة الاتفاق، لذلك تحافظ على أسلوب واضح ومريح للعميل.",
+  );
   const [followUpContext, setFollowUpContext] = useState<FollowUpContext>({
     agreementTone: null,
     clientUrgency: null,
@@ -203,6 +209,8 @@ export default function FollowUpPage() {
 
         const result = (await response.json()) as {
           message: string;
+          toneLabel: FollowUpToneLabel;
+          reason: string;
           provider: import("@/lib/ai/types").AIProviderName;
           fallbackUsed: boolean;
         };
@@ -212,6 +220,8 @@ export default function FollowUpPage() {
         }
 
         setMessage(result.message);
+        setToneLabel(result.toneLabel);
+        setToneReason(result.reason);
         setFallbackUsed(result.fallbackUsed);
       } catch {
         if (!isActive) {
@@ -257,7 +267,7 @@ export default function FollowUpPage() {
       <PageHeader
         title="رسالة متابعة جاهزة"
         description="واصل كتب لك رسالة مناسبة لنبرة الاتفاق. انسخها وأرسلها للعميل."
-        badge={<ToneBadge tone="مهني" />}
+        badge={<ToneBadge tone={toneLabel} />}
       />
 
       <section className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
@@ -325,11 +335,10 @@ export default function FollowUpPage() {
               سبب هذا الأسلوب
             </p>
             <h3 className="mt-1 text-lg font-bold text-foreground">
-              نبرة مهنية وواضحة
+              {toneLabel}
             </h3>
             <p className="mt-3 text-sm leading-7 text-muted-foreground">
-              لأن الرسالة تُبنى على نبرة الاتفاق وحالة الدفع وموعد الاستحقاق،
-              فهي تحافظ على الأسلوب المهني وتوضح المطلوب بدون إحراج.
+              {toneReason}
             </p>
           </div>
 

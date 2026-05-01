@@ -5,6 +5,10 @@ const toneStyles = {
   "مهني": "border-teal-200 bg-teal-50 text-teal-700",
   "حازم": "border-violet-200 bg-violet-50 text-violet-700",
   "مستعجل": "border-amber-200 bg-amber-50 text-amber-700",
+  "تذكير لطيف": "border-emerald-200 bg-emerald-50 text-emerald-700",
+  "نبرة مهنية وواضحة": "border-teal-200 bg-teal-50 text-teal-700",
+  "متابعة مباشرة": "border-amber-200 bg-amber-50 text-amber-700",
+  "متابعة بعد تأخير": "border-violet-200 bg-violet-50 text-violet-700",
 } as const;
 
 export type ToneBadgeValue = keyof typeof toneStyles;

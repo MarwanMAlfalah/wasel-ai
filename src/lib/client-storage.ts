@@ -606,8 +606,11 @@ export function getInvoiceViewedBroadcastKey() {
 }
 
 export function buildFollowUpMessage(invoice: TemporaryInvoiceData) {
-  return `هلا ${invoice.clientName}، يعطيكم العافية.
-حبيت أذكّركم بالمبلغ المتبقي ${invoice.amountRemaining.toLocaleString("en-US")} ${invoice.currencyShort} لمشروع ${invoice.serviceName}، حسب اتفاقنا يكون السداد بتاريخ ${invoice.dueDate}.
-إذا تم التحويل، علّمني عشان أحدث حالة الفاتورة.
-شكرًا لكم.`;
+  return `هلا ${invoice.clientName}، يعطيك العافية.
+
+حبيت أذكّرك بخصوص المتبقي من فاتورة ${invoice.serviceName}، والمبلغ المتبقي ${invoice.amountRemaining.toLocaleString("en-US")} ${invoice.currencyShort}${invoice.dueDate ? `، وموعد الاستحقاق ${invoice.dueDate}` : ""}.
+
+إذا تم التحويل بلغني الله يعافيك عشان أحدّث حالة الفاتورة.
+
+شاكر لك تعاونك.`;
 }

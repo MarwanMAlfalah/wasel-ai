@@ -67,8 +67,19 @@ export type FollowUpInput = {
   followUpStyle: string | null;
 };
 
+export const followUpToneLabelSchema = z.enum([
+  "تذكير لطيف",
+  "نبرة مهنية وواضحة",
+  "متابعة مباشرة",
+  "متابعة بعد تأخير",
+]);
+
+export type FollowUpToneLabel = z.infer<typeof followUpToneLabelSchema>;
+
 export type FollowUpResult = {
   message: string;
+  toneLabel: FollowUpToneLabel;
+  reason: string;
   provider: AIProviderName;
   fallbackUsed: boolean;
   errorCode?: string | null;

@@ -31,6 +31,8 @@ export async function POST(request: Request) {
 
     const publicResult = {
       message: result.message,
+      toneLabel: result.toneLabel,
+      reason: result.reason,
       provider: result.provider,
       fallbackUsed: result.fallbackUsed,
     };

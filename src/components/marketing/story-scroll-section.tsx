@@ -82,9 +82,9 @@ export function StoryScrollSection() {
           {storySteps.map((step) => (
             <div
               key={step.title}
-              className="rounded-[2.2rem] border border-[#E8E3D6] bg-white/94 p-5 shadow-[0_24px_60px_-44px_rgba(11,45,38,0.12)]"
+              className="rounded-[2.2rem] border border-[#E1E8DF] bg-white/94 p-5 shadow-[0_24px_60px_-44px_rgba(20,53,46,0.12)]"
             >
-              <span className="inline-flex rounded-full border border-primary/12 bg-[#EEF8F1] px-4 py-2 text-sm font-bold text-primary">
+              <span className="inline-flex rounded-full border border-primary/12 bg-[#EEF5F0] px-4 py-2 text-sm font-bold text-primary">
                 {step.badge}
               </span>
               <h3 className="mt-4 text-2xl font-extrabold text-foreground">
@@ -129,7 +129,7 @@ export function StoryScrollSection() {
           </div>
 
           <div className="mt-14 grid items-center gap-10 lg:grid-cols-[0.95fr_1.05fr]">
-            <div className="relative min-h-[17rem] rounded-[2.4rem] border border-[#E8E3D6] bg-white/76 p-6 shadow-[0_30px_72px_-52px_rgba(11,45,38,0.14)] backdrop-blur">
+            <div className="relative min-h-[17rem] rounded-[2.4rem] border border-[#E1E8DF] bg-white/82 p-6 shadow-[0_30px_72px_-52px_rgba(20,53,46,0.14)] backdrop-blur">
               {animatedSteps.map((step, index) => (
                 <motion.div
                   key={step.title}
@@ -137,7 +137,7 @@ export function StoryScrollSection() {
                   className="absolute inset-0 flex flex-col justify-center px-6"
                 >
                   <div className="flex items-center gap-3 text-[#697C75]">
-                    <span className="flex size-10 items-center justify-center rounded-2xl bg-[#EEF8F1] text-sm font-extrabold text-primary">
+                    <span className="flex size-10 items-center justify-center rounded-2xl bg-[#EEF5F0] text-sm font-extrabold text-primary">
                       0{index + 1}
                     </span>
                     <span className="text-sm font-bold">{step.badge}</span>
@@ -156,7 +156,7 @@ export function StoryScrollSection() {
               style={{ scale: phoneScale }}
               className="relative mx-auto w-full max-w-[24rem]"
             >
-              <div className="absolute inset-x-6 top-8 h-28 rounded-[2rem] bg-[#EEF8F1] blur-3xl" />
+              <div className="absolute inset-x-6 top-8 h-28 rounded-[2rem] bg-[#E9F3EC] blur-3xl" />
               <DeviceFrame label="واجهة الجوال" className="relative max-w-[24rem]">
                 <motion.div
                   style={{ opacity: stageOneOpacity }}
