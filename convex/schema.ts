@@ -52,4 +52,16 @@ export default defineSchema({
     viewedAt: v.number(),
     userAgent: v.union(v.string(), v.null()),
   }).index("by_invoice", ["invoiceId"]),
+
+  expenses: defineTable({
+    invoiceId: v.id("invoices"),
+    workspaceId: v.string(),
+    amount: v.number(),
+    currency: v.string(),
+    category: v.string(),
+    note: v.union(v.string(), v.null()),
+    createdAt: v.number(),
+  })
+    .index("by_invoice", ["invoiceId", "createdAt"])
+    .index("by_workspace", ["workspaceId"]),
 });

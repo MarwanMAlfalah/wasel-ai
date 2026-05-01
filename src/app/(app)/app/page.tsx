@@ -17,16 +17,32 @@ import { StatCard } from "@/components/shared/stat-card";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import {
+  applyFinancialSummaryToInvoice,
   defaultTemporaryInvoiceData,
   getInvoiceViewed,
+  getStoredFinancialSummary,
   getStoredInvoice,
+  setStoredInvoice,
+  type TemporaryFinancialSummary,
   type TemporaryInvoiceData,
 } from "@/lib/client-storage";
+
+const emptySummary: TemporaryFinancialSummary = {
+  totalAmount: 0,
+  paidAmount: 0,
+  remainingAmount: 0,
+  totalExpenses: 0,
+  expectedProfit: 0,
+  currency: "ريال",
+};
 
 export default function DashboardPage() {
   const [invoice, setInvoice] =
     useState<TemporaryInvoiceData>(defaultTemporaryInvoiceData);
+  const [financialSummary, setFinancialSummary] =
+    useState<TemporaryFinancialSummary>(emptySummary);
   const [invoiceViewed, setInvoiceViewed] = useState(false);
+  const [hasInvoice, setHasInvoice] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -36,7 +52,13 @@ export default function DashboardPage() {
         return;
       }
 
-      setInvoice(getStoredInvoice() ?? defaultTemporaryInvoiceData);
+      const storedInvoice = getStoredInvoice();
+
+      setInvoice(storedInvoice ?? defaultTemporaryInvoiceData);
+      setFinancialSummary(
+        storedInvoice ? getStoredFinancialSummary(storedInvoice) : emptySummary,
+      );
+      setHasInvoice(Boolean(storedInvoice));
       setInvoiceViewed(getInvoiceViewed());
     });
 
@@ -76,27 +98,93 @@ export default function DashboardPage() {
           }>;
         };
 
-        if (!isActive || result.invoices.length === 0) {
+        if (!isActive) {
+          return;
+        }
+
+        if (result.invoices.length === 0) {
+          const storedInvoice = getStoredInvoice();
+
+          setHasInvoice(Boolean(storedInvoice));
+          setFinancialSummary(
+            storedInvoice ? getStoredFinancialSummary(storedInvoice) : emptySummary,
+          );
           return;
         }
 
         const latestInvoice = result.invoices[0];
-        const viewed = result.invoices.some((listedInvoice) => listedInvoice.viewCount > 0);
+        const [invoiceResponse, summaryResponse] = await Promise.all([
+          fetch(`/api/invoices/${latestInvoice.invoiceId}`),
+          fetch(`/api/invoices/${latestInvoice.invoiceId}/financial-summary`),
+        ]);
 
-        setInvoice((current) => ({
-          ...current,
-          id: latestInvoice.invoiceId,
-          token: latestInvoice.token,
-          invoiceNumber: latestInvoice.invoiceNumber,
-          clientName: latestInvoice.clientName,
-          serviceName: latestInvoice.service,
-          projectValue: latestInvoice.totalAmount,
-          amountRemaining: latestInvoice.remainingAmount,
-          dueDate: latestInvoice.dueDate ?? "",
-          paymentStatus: latestInvoice.paymentStatus as TemporaryInvoiceData["paymentStatus"],
-          viewCount: latestInvoice.viewCount,
-        }));
-        setInvoiceViewed(viewed);
+        if (!invoiceResponse.ok || !summaryResponse.ok) {
+          throw new Error("Load invoice dashboard details request failed");
+        }
+
+        const invoiceResult = (await invoiceResponse.json()) as {
+          invoice: {
+            invoiceId: string;
+            workspaceId: string;
+            token: string;
+            invoiceNumber: string;
+            freelancerName: string;
+            clientName: string;
+            service: string;
+            totalAmount: number;
+            currency: string;
+            paidAmount: number;
+            remainingAmount: number;
+            deliveryDate: string | null;
+            dueDate: string | null;
+            paymentStatus: string;
+            agreementTone: string;
+            clientUrgency: string;
+            followUpStyle: string;
+            smartInsight: string;
+            confidence: number;
+            viewCount: number;
+            firstViewedAt: number | null;
+            lastViewedAt: number | null;
+          };
+        };
+        const summaryResult = (await summaryResponse.json()) as {
+          summary: TemporaryFinancialSummary;
+        };
+
+        if (!isActive) {
+          return;
+        }
+
+        const nextInvoice = applyFinancialSummaryToInvoice(
+          {
+            ...(getStoredInvoice() ?? defaultTemporaryInvoiceData),
+            id: invoiceResult.invoice.invoiceId,
+            workspaceId: invoiceResult.invoice.workspaceId,
+            token: invoiceResult.invoice.token,
+            invoiceNumber: invoiceResult.invoice.invoiceNumber,
+            freelancerName: invoiceResult.invoice.freelancerName,
+            clientName: invoiceResult.invoice.clientName,
+            serviceName: invoiceResult.invoice.service,
+            deliveryDate: invoiceResult.invoice.deliveryDate ?? "",
+            dueDate: invoiceResult.invoice.dueDate ?? "",
+            paymentStatus:
+              invoiceResult.invoice.paymentStatus as TemporaryInvoiceData["paymentStatus"],
+            viewCount: invoiceResult.invoice.viewCount,
+            projectValue: invoiceResult.invoice.totalAmount,
+            amountPaid: invoiceResult.invoice.paidAmount,
+            amountRemaining: invoiceResult.invoice.remainingAmount,
+            currencyShort: invoiceResult.invoice.currency,
+            currencyLabel: invoiceResult.invoice.currency,
+          },
+          summaryResult.summary,
+        );
+
+        setInvoice(nextInvoice);
+        setStoredInvoice(nextInvoice);
+        setFinancialSummary(summaryResult.summary);
+        setInvoiceViewed(invoiceResult.invoice.viewCount > 0);
+        setHasInvoice(true);
       } catch {
         // keep local fallback
       }
@@ -109,9 +197,17 @@ export default function DashboardPage() {
     };
   }, []);
 
-  const invoiceStatusText = invoiceViewed
-    ? "العميل شاهد الفاتورة اليوم"
-    : "العميل لم يشاهد الفاتورة بعد";
+  const displaySummary = hasInvoice ? financialSummary : emptySummary;
+  const invoiceStatusText = hasInvoice
+    ? invoiceViewed
+      ? "العميل شاهد الفاتورة اليوم"
+      : "العميل لم يشاهد الفاتورة بعد"
+    : "لا توجد فاتورة محفوظة بعد";
+  const smartAlertDescription = getSmartAlertDescription({
+    hasInvoice,
+    summary: displaySummary,
+    invoiceViewed,
+  });
 
   return (
     <div className="space-y-6">
@@ -129,67 +225,32 @@ export default function DashboardPage() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <StatCard
           title="قيمة المشروع"
-          value={
-            <span className="inline-flex items-center gap-1.5">
-              <ArabicNumber value={invoice.projectValue} />
-              <span className="text-base font-bold text-muted-foreground">
-                ريال
-              </span>
-            </span>
-          }
+          value={<CurrencyValue value={displaySummary.totalAmount} currency={displaySummary.currency} />}
           hint="إجمالي الاتفاق قبل احتساب المصاريف."
           icon={<ReceiptText className="size-5" />}
         />
         <StatCard
           title="المدفوع"
-          value={
-            <span className="inline-flex items-center gap-1.5">
-              <ArabicNumber value={invoice.amountPaid} />
-              <span className="text-base font-bold text-muted-foreground">
-                ريال
-              </span>
-            </span>
-          }
-          hint="دفعة مسجلة يدويًا حتى الآن."
+          value={<CurrencyValue value={displaySummary.paidAmount} currency={displaySummary.currency} />}
+          hint="إجمالي المبلغ المسجل حتى الآن."
           icon={<CircleDollarSign className="size-5" />}
         />
         <StatCard
           title="المتبقي"
-          value={
-            <span className="inline-flex items-center gap-1.5">
-              <ArabicNumber value={invoice.amountRemaining} />
-              <span className="text-base font-bold text-muted-foreground">
-                ريال
-              </span>
-            </span>
-          }
+          value={<CurrencyValue value={displaySummary.remainingAmount} currency={displaySummary.currency} />}
           hint="المبلغ المتوقع متابعته مع العميل."
           icon={<WalletCards className="size-5" />}
         />
         <StatCard
           title="مصاريف المشروع"
-          value={
-            <span className="inline-flex items-center gap-1.5">
-              <ArabicNumber value={invoice.projectExpenses} />
-              <span className="text-base font-bold text-muted-foreground">
-                ريال
-              </span>
-            </span>
-          }
-          hint="مصروفات تجريبية مرتبطة بالمشروع."
+          value={<CurrencyValue value={displaySummary.totalExpenses} currency={displaySummary.currency} />}
+          hint="المصاريف المسجلة على الفاتورة الحالية."
           icon={<ChartNoAxesColumnIncreasing className="size-5" />}
         />
         <StatCard
           title="الربح المتوقع"
-          value={
-            <span className="inline-flex items-center gap-1.5">
-              <ArabicNumber value={invoice.expectedProfit} />
-              <span className="text-base font-bold text-muted-foreground">
-                ريال
-              </span>
-            </span>
-          }
-          hint="الربح بعد خصم المصاريف."
+          value={<CurrencyValue value={displaySummary.expectedProfit} currency={displaySummary.currency} />}
+          hint="قيمة المشروع بعد خصم المصاريف."
           icon={<ChartNoAxesColumnIncreasing className="size-5" />}
         />
         <StatCard
@@ -203,16 +264,26 @@ export default function DashboardPage() {
       <section className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
         <AIInsightCard
           label="تنبيه واصل"
-          title="قراءة سريعة لوضع المشروع"
-          description="بعد احتساب المصاريف، ربحك المتوقع من هذا المشروع هو 23,500 ريال. يمكنك إرسال تذكير قبل موعد الاستحقاق."
+          title={hasInvoice ? "قراءة سريعة لوضع المشروع" : "ابدأ بأول فاتورة"}
+          description={smartAlertDescription}
           badge={<StatusBadge status={invoiceViewed ? "تمت المشاهدة" : "لم تُشاهد بعد"} />}
           footer={
             <div className="flex flex-wrap items-center gap-3">
               <Button asChild variant="outline" className="rounded-2xl">
-                <Link href="/app/invoices/demo">فتح الفاتورة</Link>
+                <Link href={hasInvoice ? `/app/invoices/${invoice.id ?? "demo"}` : "/app/new"}>
+                  {hasInvoice ? "فتح الفاتورة" : "إضافة فاتورة"}
+                </Link>
               </Button>
               <Button asChild className="rounded-2xl">
-                <Link href="/app/invoices/demo/follow-up">رسالة المتابعة</Link>
+                <Link
+                  href={
+                    hasInvoice
+                      ? `/app/invoices/${invoice.id ?? "demo"}/follow-up`
+                      : "/app/new"
+                  }
+                >
+                  {hasInvoice ? "رسالة المتابعة" : "بدء رحلة جديدة"}
+                </Link>
               </Button>
             </div>
           }
@@ -225,21 +296,47 @@ export default function DashboardPage() {
                 ملخص الاتفاق الحالي
               </p>
               <h3 className="text-lg font-bold text-foreground">
-                {invoice.clientName}
+                {hasInvoice ? invoice.clientName : "لا توجد فاتورة محفوظة بعد"}
               </h3>
             </div>
-            <StatusBadge status={invoice.paymentStatus} />
+            <StatusBadge
+              status={hasInvoice ? invoice.paymentStatus : "غير محددة"}
+            />
           </div>
 
           <dl className="mt-5 space-y-4 text-sm">
-            <SummaryRow label="الخدمة" value={invoice.serviceName} />
-            <SummaryRow label="موعد التسليم" value={invoice.deliveryDate} />
-            <SummaryRow label="موعد الاستحقاق" value={invoice.dueDate} />
+            <SummaryRow
+              label="الخدمة"
+              value={hasInvoice ? invoice.serviceName : "أضف محادثة جديدة لبدء أول فاتورة"}
+            />
+            <SummaryRow
+              label="موعد التسليم"
+              value={hasInvoice ? invoice.deliveryDate : "—"}
+            />
+            <SummaryRow
+              label="موعد الاستحقاق"
+              value={hasInvoice ? invoice.dueDate : "—"}
+            />
             <SummaryRow label="الرابط العام" value={invoiceStatusText} />
           </dl>
         </div>
       </section>
     </div>
+  );
+}
+
+function CurrencyValue({
+  value,
+  currency,
+}: {
+  value: number;
+  currency: string;
+}) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <ArabicNumber value={value} />
+      <span className="text-base font-bold text-muted-foreground">{currency}</span>
+    </span>
   );
 }
 
@@ -250,4 +347,28 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
       <dd className="text-right font-bold text-foreground">{value}</dd>
     </div>
   );
+}
+
+function getSmartAlertDescription({
+  hasInvoice,
+  summary,
+  invoiceViewed,
+}: {
+  hasInvoice: boolean;
+  summary: TemporaryFinancialSummary;
+  invoiceViewed: boolean;
+}) {
+  if (!hasInvoice) {
+    return "ابدأ بإضافة أول فاتورة عشان يعرض واصل ملخص المشروع والتنبيه المناسب بالعربية.";
+  }
+
+  if (summary.totalExpenses > 0) {
+    return `بعد احتساب المصاريف، ربحك المتوقع من هذا المشروع هو ${summary.expectedProfit.toLocaleString("en-US")} ${summary.currency}.`;
+  }
+
+  if (summary.remainingAmount > 0 && invoiceViewed) {
+    return `العميل شاهد الفاتورة، وما زال المتبقي ${summary.remainingAmount.toLocaleString("en-US")} ${summary.currency}. يمكنك إرسال تذكير لطيف.`;
+  }
+
+  return "أضف مصاريف المشروع عشان يحسب واصل ربحك المتوقع بدقة.";
 }

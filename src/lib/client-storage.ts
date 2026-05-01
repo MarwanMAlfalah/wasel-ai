@@ -13,10 +13,44 @@ const STORAGE_KEYS = {
   extraction: "wasil:extraction",
   invoice: "wasil:invoice",
   invoiceViewed: "wasil:invoice-viewed",
+  invoiceExpenses: "wasil:invoice-expenses",
 } as const;
+
+export const expenseCategories = [
+  "أدوات",
+  "اشتراك",
+  "صور أو ملفات",
+  "إنترنت",
+  "مواصلات",
+  "تعهيد",
+  "أخرى",
+] as const;
+
+export type TemporaryExpenseCategory = (typeof expenseCategories)[number];
+
+export type TemporaryExpenseData = {
+  id: string;
+  invoiceId?: string;
+  workspaceId?: string;
+  amount: number;
+  currency: string;
+  category: TemporaryExpenseCategory;
+  note: string | null;
+  createdAt: number;
+};
+
+export type TemporaryFinancialSummary = {
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  totalExpenses: number;
+  expectedProfit: number;
+  currency: string;
+};
 
 export type TemporaryInvoiceData = {
   id?: string;
+  workspaceId?: string;
   token?: string;
   invoiceNumber: string;
   freelancerName: string;
@@ -43,6 +77,10 @@ export const defaultTemporaryInvoiceData: TemporaryInvoiceData = {
 };
 
 export type TemporaryExtractionData = ExtractionResult;
+
+function getInvoiceStorageKey(invoice: Partial<TemporaryInvoiceData>) {
+  return invoice.id ?? invoice.token ?? invoice.invoiceNumber ?? "demo";
+}
 
 function isBrowser() {
   return typeof window !== "undefined";
@@ -91,6 +129,123 @@ export function getStoredInvoice(): TemporaryInvoiceData | null {
 
 export function setStoredInvoice(value: TemporaryInvoiceData) {
   writeStorageValue(STORAGE_KEYS.invoice, value);
+}
+
+function getStoredExpensesMap() {
+  return readStorageValue<Record<string, TemporaryExpenseData[]>>(
+    STORAGE_KEYS.invoiceExpenses,
+  ) ?? {};
+}
+
+export function getStoredExpenses(invoice: Partial<TemporaryInvoiceData>) {
+  const key = getInvoiceStorageKey(invoice);
+  return getStoredExpensesMap()[key] ?? [];
+}
+
+export function setStoredExpenses(
+  invoice: Partial<TemporaryInvoiceData>,
+  expenses: TemporaryExpenseData[],
+) {
+  const key = getInvoiceStorageKey(invoice);
+  const storedExpensesMap = getStoredExpensesMap();
+
+  storedExpensesMap[key] = expenses;
+  writeStorageValue(STORAGE_KEYS.invoiceExpenses, storedExpensesMap);
+}
+
+export function addStoredExpense(
+  invoice: Partial<TemporaryInvoiceData>,
+  value: Omit<TemporaryExpenseData, "id" | "createdAt"> & {
+    id?: string;
+    createdAt?: number;
+  },
+) {
+  const expense: TemporaryExpenseData = {
+    ...value,
+    id:
+      value.id ??
+      (typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}`),
+    createdAt: value.createdAt ?? Date.now(),
+  };
+  const expenses = [expense, ...getStoredExpenses(invoice)].sort(
+    (left, right) => right.createdAt - left.createdAt,
+  );
+
+  setStoredExpenses(invoice, expenses);
+  return expense;
+}
+
+export function calculateFinancialSummary(
+  invoice: Pick<
+    TemporaryInvoiceData,
+    "projectValue" | "amountPaid" | "amountRemaining" | "currencyShort"
+  >,
+  expenses: Array<Pick<TemporaryExpenseData, "amount">>,
+): TemporaryFinancialSummary {
+  const totalExpenses = expenses.reduce(
+    (sum, expense) => sum + expense.amount,
+    0,
+  );
+  const remainingAmount =
+    typeof invoice.amountRemaining === "number"
+      ? invoice.amountRemaining
+      : invoice.projectValue - invoice.amountPaid;
+
+  return {
+    totalAmount: invoice.projectValue,
+    paidAmount: invoice.amountPaid,
+    remainingAmount,
+    totalExpenses,
+    expectedProfit: invoice.projectValue - totalExpenses,
+    currency: invoice.currencyShort,
+  };
+}
+
+export function getStoredFinancialSummary(
+  invoice: Pick<
+    TemporaryInvoiceData,
+    | "id"
+    | "token"
+    | "invoiceNumber"
+    | "projectValue"
+    | "amountPaid"
+    | "amountRemaining"
+    | "projectExpenses"
+    | "expectedProfit"
+    | "currencyShort"
+  >,
+) {
+  const expenses = getStoredExpenses(invoice);
+
+  if (expenses.length === 0 && invoice.projectExpenses > 0) {
+    return {
+      totalAmount: invoice.projectValue,
+      paidAmount: invoice.amountPaid,
+      remainingAmount: invoice.amountRemaining,
+      totalExpenses: invoice.projectExpenses,
+      expectedProfit: invoice.expectedProfit,
+      currency: invoice.currencyShort,
+    };
+  }
+
+  return calculateFinancialSummary(invoice, expenses);
+}
+
+export function applyFinancialSummaryToInvoice(
+  invoice: TemporaryInvoiceData,
+  summary: TemporaryFinancialSummary,
+): TemporaryInvoiceData {
+  return {
+    ...invoice,
+    projectValue: summary.totalAmount,
+    amountPaid: summary.paidAmount,
+    amountRemaining: summary.remainingAmount,
+    projectExpenses: summary.totalExpenses,
+    expectedProfit: summary.expectedProfit,
+    currencyShort: summary.currency || invoice.currencyShort,
+  };
 }
 
 export function getInvoiceViewed() {

@@ -252,11 +252,13 @@ export default function ExtractionReviewPage() {
         invoiceId: string;
         token: string;
         invoiceNumber: string;
+        workspaceId: string;
       };
 
       const persistedInvoice: TemporaryInvoiceData = {
         ...nextInvoice,
         id: result.invoiceId,
+        workspaceId: result.workspaceId,
         token: result.token,
         invoiceNumber: result.invoiceNumber,
         viewCount: 0,

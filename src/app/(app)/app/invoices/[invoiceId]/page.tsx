@@ -22,22 +22,54 @@ import { StatusBadge } from "@/components/shared/status-badge";
 import { useToast } from "@/components/shared/toast-provider";
 import { Button } from "@/components/ui/button";
 import {
+  applyFinancialSummaryToInvoice,
+  addStoredExpense,
   buildPublicInvoiceUrl,
   defaultTemporaryInvoiceData,
+  expenseCategories,
+  getStoredExpenses,
+  getStoredFinancialSummary,
   getStoredInvoice,
+  setStoredExpenses,
   setStoredInvoice,
+  type TemporaryExpenseCategory,
+  type TemporaryExpenseData,
+  type TemporaryFinancialSummary,
   type TemporaryInvoiceData,
 } from "@/lib/client-storage";
+
+type ExpenseFormState = {
+  amount: string;
+  currency: string;
+  category: TemporaryExpenseCategory;
+  note: string;
+};
 
 export default function InvoiceDetailPage() {
   const params = useParams<{ invoiceId: string }>();
   const [isHydrated, setIsHydrated] = useState(false);
   const [invoice, setInvoice] =
     useState<TemporaryInvoiceData>(defaultTemporaryInvoiceData);
+  const [expenses, setExpenses] = useState<TemporaryExpenseData[]>([]);
+  const [financialSummary, setFinancialSummary] =
+    useState<TemporaryFinancialSummary | null>(null);
+  const [usesLocalExpenseFallback, setUsesLocalExpenseFallback] = useState(false);
+  const [isSavingExpense, setIsSavingExpense] = useState(false);
+  const [expenseForm, setExpenseForm] = useState<ExpenseFormState>({
+    amount: "",
+    currency: defaultTemporaryInvoiceData.currencyShort,
+    category: expenseCategories[0],
+    note: "",
+  });
   const { showToast } = useToast();
+  const summary = financialSummary ?? getStoredFinancialSummary(invoice);
   const publicInvoiceUrl = isHydrated
     ? buildPublicInvoiceUrl(invoice.token ?? "demo-token")
     : `/i/${invoice.token ?? "demo-token"}`;
+  const showFallbackNote =
+    usesLocalExpenseFallback ||
+    !process.env.NEXT_PUBLIC_CONVEX_URL ||
+    params?.invoiceId === "demo";
 
   useEffect(() => {
     let isActive = true;
@@ -47,7 +79,16 @@ export default function InvoiceDetailPage() {
         return;
       }
 
-      setInvoice(getStoredInvoice() ?? defaultTemporaryInvoiceData);
+      const storedInvoice = getStoredInvoice() ?? defaultTemporaryInvoiceData;
+
+      setInvoice(storedInvoice);
+      setExpenses(getStoredExpenses(storedInvoice));
+      setFinancialSummary(getStoredFinancialSummary(storedInvoice));
+      setUsesLocalExpenseFallback(!process.env.NEXT_PUBLIC_CONVEX_URL);
+      setExpenseForm((current) => ({
+        ...current,
+        currency: storedInvoice.currencyShort,
+      }));
       setIsHydrated(true);
     });
 
@@ -67,15 +108,21 @@ export default function InvoiceDetailPage() {
 
     async function loadInvoice() {
       try {
-        const response = await fetch(`/api/invoices/${invoiceId}`);
+        const [invoiceResponse, expensesResponse, summaryResponse] =
+          await Promise.all([
+            fetch(`/api/invoices/${invoiceId}`),
+            fetch(`/api/invoices/${invoiceId}/expenses`),
+            fetch(`/api/invoices/${invoiceId}/financial-summary`),
+          ]);
 
-        if (!response.ok) {
-          throw new Error("Load invoice request failed");
+        if (!invoiceResponse.ok || !expensesResponse.ok || !summaryResponse.ok) {
+          throw new Error("Load invoice details request failed");
         }
 
-        const result = (await response.json()) as {
+        const invoiceResult = (await invoiceResponse.json()) as {
           invoice: {
             invoiceId: string;
+            workspaceId: string;
             token: string;
             invoiceNumber: string;
             freelancerName: string;
@@ -98,36 +145,64 @@ export default function InvoiceDetailPage() {
             lastViewedAt: number | null;
           };
         };
+        const expensesResult = (await expensesResponse.json()) as {
+          expenses: TemporaryExpenseData[];
+        };
+        const summaryResult = (await summaryResponse.json()) as {
+          summary: TemporaryFinancialSummary;
+        };
 
         if (!isActive) {
           return;
         }
 
-        const nextInvoice: TemporaryInvoiceData = {
-          ...(getStoredInvoice() ?? defaultTemporaryInvoiceData),
-          id: result.invoice.invoiceId,
-          token: result.invoice.token,
-          invoiceNumber: result.invoice.invoiceNumber,
-          freelancerName: result.invoice.freelancerName,
-          clientName: result.invoice.clientName,
-          serviceName: result.invoice.service,
-          projectValue: result.invoice.totalAmount,
-          currencyLabel: result.invoice.currency,
-          currencyShort: result.invoice.currency,
-          amountPaid: result.invoice.paidAmount,
-          amountRemaining: result.invoice.remainingAmount,
-          deliveryDate: result.invoice.deliveryDate ?? "",
-          dueDate: result.invoice.dueDate ?? "",
-          paymentStatus: result.invoice.paymentStatus as TemporaryInvoiceData["paymentStatus"],
-          viewCount: result.invoice.viewCount,
-          firstViewedAt: result.invoice.firstViewedAt,
-          lastViewedAt: result.invoice.lastViewedAt,
-        };
+        const nextInvoice = applyFinancialSummaryToInvoice(
+          {
+            ...(getStoredInvoice() ?? defaultTemporaryInvoiceData),
+            id: invoiceResult.invoice.invoiceId,
+            workspaceId: invoiceResult.invoice.workspaceId,
+            token: invoiceResult.invoice.token,
+            invoiceNumber: invoiceResult.invoice.invoiceNumber,
+            freelancerName: invoiceResult.invoice.freelancerName,
+            clientName: invoiceResult.invoice.clientName,
+            serviceName: invoiceResult.invoice.service,
+            currencyLabel: invoiceResult.invoice.currency,
+            currencyShort: invoiceResult.invoice.currency,
+            deliveryDate: invoiceResult.invoice.deliveryDate ?? "",
+            dueDate: invoiceResult.invoice.dueDate ?? "",
+            paymentStatus:
+              invoiceResult.invoice.paymentStatus as TemporaryInvoiceData["paymentStatus"],
+            viewCount: invoiceResult.invoice.viewCount,
+            firstViewedAt: invoiceResult.invoice.firstViewedAt,
+            lastViewedAt: invoiceResult.invoice.lastViewedAt,
+            projectValue: invoiceResult.invoice.totalAmount,
+            amountPaid: invoiceResult.invoice.paidAmount,
+            amountRemaining: invoiceResult.invoice.remainingAmount,
+          },
+          summaryResult.summary,
+        );
 
         setInvoice(nextInvoice);
         setStoredInvoice(nextInvoice);
+        setExpenses(expensesResult.expenses);
+        setStoredExpenses(nextInvoice, expensesResult.expenses);
+        setFinancialSummary(summaryResult.summary);
+        setUsesLocalExpenseFallback(false);
+        setExpenseForm((current) => ({
+          ...current,
+          currency: nextInvoice.currencyShort,
+        }));
       } catch {
-        // keep local fallback
+        if (!isActive) {
+          return;
+        }
+
+        const fallbackInvoice = getStoredInvoice() ?? defaultTemporaryInvoiceData;
+
+        setInvoice(fallbackInvoice);
+        setExpenses(getStoredExpenses(fallbackInvoice));
+        setFinancialSummary(getStoredFinancialSummary(fallbackInvoice));
+        setUsesLocalExpenseFallback(true);
       }
     }
 
@@ -138,10 +213,126 @@ export default function InvoiceDetailPage() {
     };
   }, [params?.invoiceId]);
 
+  function updateExpenseField<Key extends keyof ExpenseFormState>(
+    key: Key,
+    value: ExpenseFormState[Key],
+  ) {
+    setExpenseForm((current) => ({
+      ...current,
+      [key]: value,
+    }));
+  }
+
+  function syncLocalFinancialState(baseInvoice: TemporaryInvoiceData) {
+    const nextExpenses = getStoredExpenses(baseInvoice);
+    const nextSummary = getStoredFinancialSummary(baseInvoice);
+    const nextInvoice = applyFinancialSummaryToInvoice(baseInvoice, nextSummary);
+
+    setExpenses(nextExpenses);
+    setFinancialSummary(nextSummary);
+    setInvoice(nextInvoice);
+    setStoredInvoice(nextInvoice);
+
+    return nextInvoice;
+  }
+
   async function handleCopyInvoiceLink() {
-    const publicUrl = buildPublicInvoiceUrl();
-    await navigator.clipboard.writeText(publicUrl);
+    await navigator.clipboard.writeText(publicInvoiceUrl);
     showToast("تم نسخ رابط الفاتورة");
+  }
+
+  async function handleSaveExpense() {
+    const amount = Number(expenseForm.amount.replace(/[^\d.]/g, ""));
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast("أدخل مبلغًا صحيحًا للمصروف");
+      return;
+    }
+
+    const payload = {
+      amount,
+      currency: expenseForm.currency.trim() || invoice.currencyShort,
+      category: expenseForm.category,
+      note: expenseForm.note.trim() || null,
+    };
+
+    setIsSavingExpense(true);
+
+    try {
+      if (
+        process.env.NEXT_PUBLIC_CONVEX_URL &&
+        invoice.id &&
+        params?.invoiceId !== "demo"
+      ) {
+        const response = await fetch(`/api/invoices/${invoice.id}/expenses`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            workspaceId: invoice.workspaceId,
+            ...payload,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error("Add expense request failed");
+        }
+
+        const [expensesResponse, summaryResponse] = await Promise.all([
+          fetch(`/api/invoices/${invoice.id}/expenses`),
+          fetch(`/api/invoices/${invoice.id}/financial-summary`),
+        ]);
+
+        if (!expensesResponse.ok || !summaryResponse.ok) {
+          throw new Error("Refresh expense request failed");
+        }
+
+        const expensesResult = (await expensesResponse.json()) as {
+          expenses: TemporaryExpenseData[];
+        };
+        const summaryResult = (await summaryResponse.json()) as {
+          summary: TemporaryFinancialSummary;
+        };
+        const nextInvoice = applyFinancialSummaryToInvoice(
+          {
+            ...invoice,
+            currencyShort: summaryResult.summary.currency,
+          },
+          summaryResult.summary,
+        );
+
+        setInvoice(nextInvoice);
+        setStoredInvoice(nextInvoice);
+        setExpenses(expensesResult.expenses);
+        setStoredExpenses(nextInvoice, expensesResult.expenses);
+        setFinancialSummary(summaryResult.summary);
+        setUsesLocalExpenseFallback(false);
+      } else {
+        throw new Error("Convex is unavailable");
+      }
+    } catch {
+      addStoredExpense(invoice, {
+        invoiceId: invoice.id,
+        workspaceId: invoice.workspaceId,
+        ...payload,
+      });
+      syncLocalFinancialState({
+        ...invoice,
+        currencyShort: payload.currency,
+      });
+      setUsesLocalExpenseFallback(true);
+    } finally {
+      setExpenseForm({
+        amount: "",
+        currency: invoice.currencyShort,
+        category: expenseCategories[0],
+        note: "",
+      });
+      setIsSavingExpense(false);
+    }
+
+    showToast("تم حفظ المصروف وتحديث الربح المتوقع");
   }
 
   return (
@@ -174,19 +365,19 @@ export default function InvoiceDetailPage() {
             <InvoiceLine label="الخدمة" value={invoice.serviceName} fullWidth />
             <InvoiceAmount
               label="الإجمالي"
-              value={invoice.projectValue}
-              currencyShort={invoice.currencyShort}
+              value={summary.totalAmount}
+              currencyShort={summary.currency}
               emphasis
             />
             <InvoiceAmount
               label="المدفوع"
-              value={invoice.amountPaid}
-              currencyShort={invoice.currencyShort}
+              value={summary.paidAmount}
+              currencyShort={summary.currency}
             />
             <InvoiceAmount
               label="المتبقي"
-              value={invoice.amountRemaining}
-              currencyShort={invoice.currencyShort}
+              value={summary.remainingAmount}
+              currencyShort={summary.currency}
             />
             <InvoiceLine label="موعد التسليم" value={invoice.deliveryDate} />
             <InvoiceLine label="موعد الاستحقاق" value={invoice.dueDate} />
@@ -241,7 +432,7 @@ export default function InvoiceDetailPage() {
                 تحميل PDF
               </Button>
               <Button asChild variant="outline" className="h-11 rounded-2xl">
-                <Link href="/app/invoices/demo/follow-up">
+                <Link href={`/app/invoices/${invoice.id ?? "demo"}/follow-up`}>
                   <MessageSquareMore className="size-4" />
                   نسخ رسالة واتساب
                 </Link>
@@ -258,36 +449,142 @@ export default function InvoiceDetailPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-3">
-        <InfoCard
-          icon={<WalletCards className="size-5" />}
-          title="الدفعات المسجلة"
-          lines={[
-            `دفعة أولى: ${invoice.amountPaid.toLocaleString("en-US")} ${invoice.currencyShort}`,
-            "تاريخ التسجيل: 1 ديسمبر 2026",
-            "الوصف: عربون بدء المشروع",
-          ]}
-        />
-        <InfoCard
-          icon={<FileText className="size-5" />}
-          title="مصاريف المشروع"
-          lines={[
-            "اشتراك أدوات التصميم: 500 ريال",
-            "شراء أصول واجهة: 1,000 ريال",
-            `الإجمالي: ${invoice.projectExpenses.toLocaleString("en-US")} ${invoice.currencyShort}`,
-          ]}
-        />
-        <InfoCard
-          icon={<CalendarClock className="size-5" />}
-          title="النشاط الأخير"
-          lines={[
-            "تم تجهيز الفاتورة الداخلية",
-            invoice.viewCount && invoice.viewCount > 0
-              ? "تم تسجيل مشاهدة الرابط العام"
-              : "بانتظار فتح الرابط من العميل",
-            "رسالة المتابعة الجاهزة متاحة للإرسال",
-          ]}
-        />
+      <section className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+        <div className="space-y-4">
+          <FinancialSummaryCard summary={summary} />
+          <InfoCard
+            icon={<CalendarClock className="size-5" />}
+            title="النشاط الأخير"
+            lines={[
+              "تم تجهيز الفاتورة الداخلية",
+              invoice.viewCount && invoice.viewCount > 0
+                ? "تم تسجيل مشاهدة الرابط العام"
+                : "بانتظار فتح الرابط من العميل",
+              "رسالة المتابعة الجاهزة متاحة للإرسال",
+            ]}
+          />
+        </div>
+
+        <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
+          <div className="flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-muted-foreground">
+                مصاريف المشروع
+              </p>
+              <h3 className="text-lg font-bold text-foreground">
+                أضف مصروفًا واحسب الربح المتوقع مباشرة
+              </h3>
+            </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+              <FileText className="size-5" />
+            </div>
+          </div>
+
+          {showFallbackNote ? (
+            <p className="mt-4 rounded-[1.25rem] border border-dashed border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-7 text-amber-800">
+              يتم حفظ المصاريف مؤقتًا على هذا الجهاز
+            </p>
+          ) : null}
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-muted-foreground">
+                المبلغ
+              </span>
+              <input
+                value={expenseForm.amount}
+                onChange={(event) => updateExpenseField("amount", event.target.value)}
+                inputMode="decimal"
+                className="h-11 w-full rounded-2xl border border-input bg-background px-4 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-muted-foreground">
+                العملة
+              </span>
+              <input
+                value={expenseForm.currency}
+                onChange={(event) => updateExpenseField("currency", event.target.value)}
+                className="h-11 w-full rounded-2xl border border-input bg-background px-4 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-muted-foreground">
+                نوع المصروف
+              </span>
+              <select
+                value={expenseForm.category}
+                onChange={(event) =>
+                  updateExpenseField(
+                    "category",
+                    event.target.value as TemporaryExpenseCategory,
+                  )
+                }
+                className="h-11 w-full rounded-2xl border border-input bg-background px-4 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                {expenseCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-2">
+              <span className="text-sm font-medium text-muted-foreground">
+                ملاحظة
+              </span>
+              <input
+                value={expenseForm.note}
+                onChange={(event) => updateExpenseField("note", event.target.value)}
+                className="h-11 w-full rounded-2xl border border-input bg-background px-4 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              />
+            </label>
+          </div>
+
+          <div className="mt-4">
+            <Button
+              className="h-11 rounded-2xl px-5"
+              onClick={handleSaveExpense}
+              disabled={isSavingExpense}
+            >
+              حفظ المصروف
+            </Button>
+          </div>
+
+          <div className="mt-5 space-y-3">
+            {expenses.length === 0 ? (
+              <div className="rounded-[1.25rem] border border-dashed border-border bg-background px-4 py-4 text-sm leading-7 text-muted-foreground">
+                لا توجد مصاريف محفوظة بعد. أضف أول مصروف ليظهر الربح المتوقع بشكل أدق.
+              </div>
+            ) : (
+              expenses.map((expense) => (
+                <div
+                  key={expense.id}
+                  className="rounded-[1.25rem] border border-input bg-background px-4 py-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-foreground">
+                        {expense.category}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatExpenseDate(expense.createdAt)}
+                      </p>
+                    </div>
+                    <p className="text-sm font-bold text-foreground">
+                      {expense.amount.toLocaleString("en-US")} {expense.currency}
+                    </p>
+                  </div>
+                  {expense.note ? (
+                    <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                      {expense.note}
+                    </p>
+                  ) : null}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       </section>
     </div>
   );
@@ -363,4 +660,80 @@ function InfoCard({
       </ul>
     </div>
   );
+}
+
+function FinancialSummaryCard({
+  summary,
+}: {
+  summary: TemporaryFinancialSummary;
+}) {
+  return (
+    <div className="rounded-[1.75rem] border border-border/70 bg-card p-5 shadow-[0_20px_60px_-52px_rgba(0,72,54,0.28)]">
+      <div className="flex items-center gap-3">
+        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <WalletCards className="size-5" />
+        </span>
+        <h3 className="text-lg font-bold text-foreground">الملخص المالي</h3>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        <SummaryAmountRow
+          label="قيمة المشروع"
+          value={summary.totalAmount}
+          currency={summary.currency}
+        />
+        <SummaryAmountRow
+          label="المدفوع"
+          value={summary.paidAmount}
+          currency={summary.currency}
+        />
+        <SummaryAmountRow
+          label="المتبقي"
+          value={summary.remainingAmount}
+          currency={summary.currency}
+        />
+        <SummaryAmountRow
+          label="مصاريف المشروع"
+          value={summary.totalExpenses}
+          currency={summary.currency}
+        />
+        <SummaryAmountRow
+          label="الربح المتوقع"
+          value={summary.expectedProfit}
+          currency={summary.currency}
+          emphasis
+        />
+      </div>
+    </div>
+  );
+}
+
+function SummaryAmountRow({
+  label,
+  value,
+  currency,
+  emphasis,
+}: {
+  label: string;
+  value: number;
+  currency: string;
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl bg-background px-4 py-3">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={emphasis ? "text-foreground" : "text-foreground"}>
+        <span className="inline-flex items-center gap-2 text-sm font-bold">
+          <ArabicNumber value={value} />
+          <span>{currency}</span>
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function formatExpenseDate(createdAt: number) {
+  return new Intl.DateTimeFormat("ar-SA", {
+    dateStyle: "medium",
+  }).format(new Date(createdAt));
 }
