@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import { Copy, PencilLine, WalletCards } from "lucide-react";
 
 import { PageHeader } from "@/components/shared/page-header";
@@ -9,14 +10,24 @@ import { useToast } from "@/components/shared/toast-provider";
 import { Button } from "@/components/ui/button";
 import {
   defaultTemporaryInvoiceData,
+  getInvoiceViewStatus,
   getStoredExtraction,
   getStoredInvoice,
+  getStoredInvoiceById,
+  setLatestStoredInvoice,
   type TemporaryExtractionData,
   type TemporaryInvoiceData,
 } from "@/lib/client-storage";
 import type { FollowUpInput } from "@/lib/ai/types";
 
+type FollowUpContext = {
+  agreementTone: string | null;
+  clientUrgency: string | null;
+  followUpStyle: string | null;
+};
+
 export default function FollowUpPage() {
+  const params = useParams<{ invoiceId: string }>();
   const [isHydrated, setIsHydrated] = useState(false);
   const [invoice, setInvoice] =
     useState<TemporaryInvoiceData>(defaultTemporaryInvoiceData);
@@ -26,26 +37,131 @@ export default function FollowUpPage() {
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [fallbackUsed, setFallbackUsed] = useState(false);
+  const [followUpContext, setFollowUpContext] = useState<FollowUpContext>({
+    agreementTone: null,
+    clientUrgency: null,
+    followUpStyle: null,
+  });
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const { showToast } = useToast();
 
   useEffect(() => {
     let isActive = true;
+    const invoiceId = params?.invoiceId;
 
-    queueMicrotask(() => {
-      if (!isActive) {
-        return;
+    async function loadInvoiceContext() {
+      const storedExtractionValue = getStoredExtraction();
+      const storedInvoice =
+        (invoiceId ? getStoredInvoiceById(invoiceId) : null) ??
+        getStoredInvoice() ??
+        defaultTemporaryInvoiceData;
+
+      if (isActive) {
+        setExtraction(storedExtractionValue);
+        setLatestStoredInvoice(storedInvoice);
+        setInvoice(storedInvoice);
+        setFollowUpContext({
+          agreementTone: storedExtractionValue?.data.agreementTone ?? null,
+          clientUrgency: storedExtractionValue?.data.clientUrgency ?? null,
+          followUpStyle: storedExtractionValue?.data.followUpStyle ?? null,
+        });
       }
 
-      setInvoice(getStoredInvoice() ?? defaultTemporaryInvoiceData);
-      setExtraction(getStoredExtraction());
-      setIsHydrated(true);
-    });
+      if (
+        process.env.NEXT_PUBLIC_CONVEX_URL &&
+        invoiceId &&
+        invoiceId !== "demo" &&
+        !invoiceId.startsWith("invoice-")
+      ) {
+        try {
+          const response = await fetch(`/api/invoices/${invoiceId}`, {
+            cache: "no-store",
+          });
+
+          if (!response.ok) {
+            throw new Error("Load invoice request failed");
+          }
+
+          const result = (await response.json()) as {
+            invoice: {
+              invoiceId: string;
+              workspaceId: string;
+              token: string;
+              invoiceNumber: string;
+              freelancerName: string;
+              clientName: string;
+              service: string;
+              totalAmount: number;
+              currency: string;
+              paidAmount: number;
+              remainingAmount: number;
+              deliveryDate: string | null;
+              dueDate: string | null;
+              paymentStatus: string;
+              agreementTone: string;
+              clientUrgency: string;
+              followUpStyle: string;
+              smartInsight: string;
+              confidence: number;
+              viewCount: number;
+              firstViewedAt: number | null;
+              lastViewedAt: number | null;
+              createdAt: number;
+              updatedAt: number;
+            };
+          };
+
+          if (!isActive) {
+            return;
+          }
+
+          setInvoice({
+            ...storedInvoice,
+            id: result.invoice.invoiceId,
+            workspaceId: result.invoice.workspaceId,
+            token: result.invoice.token,
+            invoiceNumber: result.invoice.invoiceNumber,
+            freelancerName: result.invoice.freelancerName,
+            clientName: result.invoice.clientName,
+            serviceName: result.invoice.service,
+            projectValue: result.invoice.totalAmount,
+            currencyLabel: result.invoice.currency,
+            currencyShort: result.invoice.currency,
+            amountPaid: result.invoice.paidAmount,
+            amountRemaining: result.invoice.remainingAmount,
+            deliveryDate: result.invoice.deliveryDate ?? "",
+            dueDate: result.invoice.dueDate ?? "",
+            paymentStatus:
+              result.invoice.paymentStatus as TemporaryInvoiceData["paymentStatus"],
+            invoiceViewStatus: getInvoiceViewStatus(result.invoice.viewCount),
+            viewCount: result.invoice.viewCount,
+            firstViewedAt: result.invoice.firstViewedAt,
+            lastViewedAt: result.invoice.lastViewedAt,
+            createdAt: result.invoice.createdAt,
+            updatedAt: result.invoice.updatedAt,
+            isConfirmed: true,
+          });
+          setFollowUpContext({
+            agreementTone: result.invoice.agreementTone,
+            clientUrgency: result.invoice.clientUrgency,
+            followUpStyle: result.invoice.followUpStyle,
+          });
+        } catch {
+          // keep local fallback
+        }
+      }
+
+      if (isActive) {
+        setIsHydrated(true);
+      }
+    }
+
+    void loadInvoiceContext();
 
     return () => {
       isActive = false;
     };
-  }, []);
+  }, [params?.invoiceId]);
 
   useEffect(() => {
     if (!isHydrated) {
@@ -62,9 +178,12 @@ export default function FollowUpPage() {
         currency: invoice.currencyShort ?? null,
         dueDate: invoice.dueDate ?? null,
         paymentStatus: invoice.paymentStatus ?? null,
-        agreementTone: extraction?.data.agreementTone ?? null,
-        clientUrgency: extraction?.data.clientUrgency ?? null,
-        followUpStyle: extraction?.data.followUpStyle ?? null,
+        agreementTone:
+          followUpContext.agreementTone ?? extraction?.data.agreementTone ?? null,
+        clientUrgency:
+          followUpContext.clientUrgency ?? extraction?.data.clientUrgency ?? null,
+        followUpStyle:
+          followUpContext.followUpStyle ?? extraction?.data.followUpStyle ?? null,
       };
 
       try {
@@ -114,7 +233,15 @@ export default function FollowUpPage() {
     return () => {
       isActive = false;
     };
-  }, [extraction, invoice, isHydrated, showToast]);
+  }, [
+    extraction,
+    followUpContext.agreementTone,
+    followUpContext.clientUrgency,
+    followUpContext.followUpStyle,
+    invoice,
+    isHydrated,
+    showToast,
+  ]);
 
   async function handleCopyMessage() {
     if (!message.trim()) {

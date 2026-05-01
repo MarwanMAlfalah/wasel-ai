@@ -17,12 +17,13 @@ import { ToneBadge } from "@/components/shared/tone-badge";
 import { useToast } from "@/components/shared/toast-provider";
 import { Button } from "@/components/ui/button";
 import {
+  createLocalConfirmedInvoice,
   defaultTemporaryInvoiceData,
   getStoredConversation,
   getStoredExtraction,
   getStoredInvoice,
+  getInvoiceViewStatus,
   mapCurrencyToLabel,
-  setInvoiceViewed,
   setStoredInvoice,
   type TemporaryExtractionData,
   type TemporaryInvoiceData,
@@ -176,7 +177,6 @@ export default function ExtractionReviewPage() {
   async function handleCreateInvoice() {
     const nextInvoice: TemporaryInvoiceData = {
       ...defaultTemporaryInvoiceData,
-      invoiceViewStatus: "لم تُشاهد بعد",
       clientName: formData.clientName,
       freelancerName: formData.freelancerName,
       serviceName: formData.serviceName,
@@ -199,6 +199,13 @@ export default function ExtractionReviewPage() {
       deliveryDate: formData.deliveryDate,
       dueDate: formData.dueDate,
       paymentStatus: formData.paymentStatus,
+      invoiceViewStatus: getInvoiceViewStatus(0),
+      viewCount: 0,
+      firstViewedAt: null,
+      lastViewedAt: null,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      isConfirmed: false,
     };
 
     nextInvoice.expectedProfit = nextInvoice.projectValue - nextInvoice.projectExpenses;
@@ -226,11 +233,12 @@ export default function ExtractionReviewPage() {
       confidence: storedExtraction?.data.confidence ?? 0.5,
     };
 
-    setStoredInvoice(nextInvoice);
-    setInvoiceViewed(false);
-
     if (!process.env.NEXT_PUBLIC_CONVEX_URL) {
-      router.push("/app/invoices/demo");
+      const localInvoice = createLocalConfirmedInvoice(nextInvoice);
+
+      setStoredInvoice(localInvoice);
+      showToast("تم إنشاء فاتورة جديدة");
+      router.push(`/app/invoices/${localInvoice.id}`);
       return;
     }
 
@@ -264,13 +272,20 @@ export default function ExtractionReviewPage() {
         viewCount: 0,
         firstViewedAt: null,
         lastViewedAt: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        isConfirmed: true,
       };
 
       setStoredInvoice(persistedInvoice);
+      showToast("تم إنشاء فاتورة جديدة");
       router.push(`/app/invoices/${result.invoiceId}`);
     } catch {
       showToast("تعذر حفظ الفاتورة في Convex، سنكمل بالوضع المؤقت");
-      router.push("/app/invoices/demo");
+      const localInvoice = createLocalConfirmedInvoice(nextInvoice);
+
+      setStoredInvoice(localInvoice);
+      router.push(`/app/invoices/${localInvoice.id}`);
     } finally {
       setIsSaving(false);
     }

@@ -12,9 +12,15 @@ const STORAGE_KEYS = {
   conversation: "wasil:conversation",
   extraction: "wasil:extraction",
   invoice: "wasil:invoice",
+  invoices: "wasil:invoices",
+  latestInvoiceKey: "wasil:latest-invoice-key",
   invoiceViewed: "wasil:invoice-viewed",
   invoiceExpenses: "wasil:invoice-expenses",
+  latestViewedInvoiceEvent: "wasil:latest-viewed-invoice-event",
 } as const;
+
+export const VIEWED_INVOICE_STATUS = "تمت المشاهدة" as const;
+export const UNVIEWED_INVOICE_STATUS = "لم يشاهد بعد" as const;
 
 export const expenseCategories = [
   "أدوات",
@@ -70,6 +76,9 @@ export type TemporaryInvoiceData = {
   viewCount?: number;
   firstViewedAt?: number | null;
   lastViewedAt?: number | null;
+  createdAt?: number;
+  updatedAt?: number;
+  isConfirmed?: boolean;
 };
 
 export const defaultTemporaryInvoiceData: TemporaryInvoiceData = {
@@ -80,6 +89,19 @@ export type TemporaryExtractionData = ExtractionResult;
 
 function getInvoiceStorageKey(invoice: Partial<TemporaryInvoiceData>) {
   return invoice.id ?? invoice.token ?? invoice.invoiceNumber ?? "demo";
+}
+
+function generateLocalIdentifier(prefix: "invoice" | "token") {
+  const randomPart =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID().replace(/-/g, "").slice(0, 10)
+      : `${Date.now()}`;
+
+  return `${prefix}-${randomPart}`;
+}
+
+function generateLocalInvoiceNumber() {
+  return `WA-L${Date.now().toString().slice(-6)}`;
 }
 
 function isBrowser() {
@@ -107,6 +129,84 @@ function writeStorageValue<T>(key: string, value: T) {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
+function normalizeInvoice(
+  invoice: TemporaryInvoiceData,
+): TemporaryInvoiceData {
+  const createdAt = invoice.createdAt ?? Date.now();
+  const updatedAt = invoice.updatedAt ?? createdAt;
+
+  return {
+    ...invoice,
+    createdAt,
+    updatedAt,
+    isConfirmed: invoice.isConfirmed ?? Boolean(invoice.id || invoice.token),
+  };
+}
+
+function sortInvoicesByCreatedAt(
+  invoices: TemporaryInvoiceData[],
+) {
+  return [...invoices].sort(
+    (left, right) => (right.createdAt ?? 0) - (left.createdAt ?? 0),
+  );
+}
+
+function getLatestStoredInvoiceKey() {
+  return readStorageValue<string>(STORAGE_KEYS.latestInvoiceKey);
+}
+
+function writeLatestStoredInvoiceKey(key: string) {
+  writeStorageValue(STORAGE_KEYS.latestInvoiceKey, key);
+}
+
+function mergeStoredInvoices(
+  invoices: TemporaryInvoiceData[],
+  invoice: TemporaryInvoiceData,
+) {
+  const normalizedInvoice = normalizeInvoice(invoice);
+  const invoiceKey = getInvoiceStorageKey(normalizedInvoice);
+  const nextInvoices = invoices.filter(
+    (currentInvoice) => getInvoiceStorageKey(currentInvoice) !== invoiceKey,
+  );
+
+  nextInvoices.push(normalizedInvoice);
+  return sortInvoicesByCreatedAt(nextInvoices);
+}
+
+function persistStoredInvoices(
+  invoices: TemporaryInvoiceData[],
+  latestInvoiceKey?: string | null,
+) {
+  const normalizedInvoices = sortInvoicesByCreatedAt(
+    invoices.map(normalizeInvoice),
+  );
+
+  writeStorageValue(STORAGE_KEYS.invoices, normalizedInvoices);
+
+  const nextLatestKey =
+    latestInvoiceKey ??
+    getLatestStoredInvoiceKey() ??
+    (normalizedInvoices[0]
+      ? getInvoiceStorageKey(normalizedInvoices[0])
+      : null);
+
+  if (nextLatestKey) {
+    writeLatestStoredInvoiceKey(nextLatestKey);
+    const latestInvoice =
+      normalizedInvoices.find(
+        (invoice) => getInvoiceStorageKey(invoice) === nextLatestKey,
+      ) ?? normalizedInvoices[0];
+
+    if (latestInvoice) {
+      writeStorageValue(STORAGE_KEYS.invoice, latestInvoice);
+      writeStorageValue(
+        STORAGE_KEYS.invoiceViewed,
+        (latestInvoice.viewCount ?? 0) > 0,
+      );
+    }
+  }
+}
+
 export function getStoredConversation() {
   return readStorageValue<string>(STORAGE_KEYS.conversation);
 }
@@ -123,12 +223,130 @@ export function setStoredExtraction(value: TemporaryExtractionData) {
   writeStorageValue(STORAGE_KEYS.extraction, value);
 }
 
+export function getStoredInvoices() {
+  const storedInvoices =
+    readStorageValue<TemporaryInvoiceData[]>(STORAGE_KEYS.invoices) ?? [];
+  const legacyInvoice = readStorageValue<TemporaryInvoiceData>(STORAGE_KEYS.invoice);
+
+  const mergedInvoices = legacyInvoice
+    ? mergeStoredInvoices(storedInvoices, legacyInvoice)
+    : sortInvoicesByCreatedAt(storedInvoices.map(normalizeInvoice));
+
+  return mergedInvoices;
+}
+
+export function getStoredConfirmedInvoices() {
+  return getStoredInvoices().filter((invoice) => invoice.isConfirmed);
+}
+
 export function getStoredInvoice(): TemporaryInvoiceData | null {
-  return readStorageValue<TemporaryInvoiceData>(STORAGE_KEYS.invoice);
+  const storedInvoices = getStoredInvoices();
+
+  if (storedInvoices.length === 0) {
+    return readStorageValue<TemporaryInvoiceData>(STORAGE_KEYS.invoice);
+  }
+
+  const latestKey = getLatestStoredInvoiceKey();
+
+  if (!latestKey) {
+    return storedInvoices[0];
+  }
+
+  return (
+    storedInvoices.find(
+      (invoice) => getInvoiceStorageKey(invoice) === latestKey,
+    ) ?? storedInvoices[0]
+  );
+}
+
+export function upsertStoredInvoice(
+  value: TemporaryInvoiceData,
+  options?: { setLatest?: boolean },
+) {
+  const normalizedInvoice = normalizeInvoice(value);
+  const storedInvoices = getStoredInvoices();
+  const nextInvoices = mergeStoredInvoices(storedInvoices, normalizedInvoice);
+  const latestKey = options?.setLatest === false
+    ? null
+    : getInvoiceStorageKey(normalizedInvoice);
+
+  persistStoredInvoices(nextInvoices, latestKey);
 }
 
 export function setStoredInvoice(value: TemporaryInvoiceData) {
-  writeStorageValue(STORAGE_KEYS.invoice, value);
+  upsertStoredInvoice(value, { setLatest: true });
+}
+
+export function getStoredInvoiceById(invoiceId: string) {
+  return getStoredInvoices().find((invoice) => invoice.id === invoiceId) ?? null;
+}
+
+export function getStoredInvoiceByToken(token: string) {
+  return getStoredInvoices().find((invoice) => invoice.token === token) ?? null;
+}
+
+export function setLatestStoredInvoice(
+  invoice: Partial<TemporaryInvoiceData>,
+) {
+  const invoiceKey = getInvoiceStorageKey(invoice);
+  writeLatestStoredInvoiceKey(invoiceKey);
+
+  const storedInvoice = getStoredInvoices().find(
+    (currentInvoice) => getInvoiceStorageKey(currentInvoice) === invoiceKey,
+  );
+
+  if (storedInvoice) {
+    writeStorageValue(STORAGE_KEYS.invoice, storedInvoice);
+    writeStorageValue(
+      STORAGE_KEYS.invoiceViewed,
+      (storedInvoice.viewCount ?? 0) > 0,
+    );
+  }
+}
+
+export function createLocalConfirmedInvoice(
+  invoice: TemporaryInvoiceData,
+) {
+  const now = Date.now();
+
+  return normalizeInvoice({
+    ...invoice,
+    id: invoice.id ?? generateLocalIdentifier("invoice"),
+    token: invoice.token ?? generateLocalIdentifier("token"),
+    invoiceNumber:
+      invoice.invoiceNumber && !["WA-001", "WA-DEMO"].includes(invoice.invoiceNumber)
+        ? invoice.invoiceNumber
+        : generateLocalInvoiceNumber(),
+    invoiceViewStatus: invoice.invoiceViewStatus ?? UNVIEWED_INVOICE_STATUS,
+    viewCount: invoice.viewCount ?? 0,
+    firstViewedAt: invoice.firstViewedAt ?? null,
+    lastViewedAt: invoice.lastViewedAt ?? null,
+    createdAt: invoice.createdAt ?? now,
+    updatedAt: now,
+    isConfirmed: true,
+  });
+}
+
+export function markStoredInvoiceViewed(token: string) {
+  const storedInvoice = getStoredInvoiceByToken(token);
+
+  if (!storedInvoice) {
+    return null;
+  }
+
+  const now = Date.now();
+  const nextInvoice = normalizeInvoice({
+    ...storedInvoice,
+    viewCount: (storedInvoice.viewCount ?? 0) + 1,
+    firstViewedAt: storedInvoice.firstViewedAt ?? now,
+    lastViewedAt: now,
+    invoiceViewStatus: VIEWED_INVOICE_STATUS,
+    updatedAt: now,
+  });
+
+  upsertStoredInvoice(nextInvoice, { setLatest: false });
+
+  return nextInvoice;
 }
 
 function getStoredExpensesMap() {
@@ -249,11 +467,48 @@ export function applyFinancialSummaryToInvoice(
 }
 
 export function getInvoiceViewed() {
+  const storedInvoice = getStoredInvoice();
+
+  if (storedInvoice) {
+    return (storedInvoice.viewCount ?? 0) > 0;
+  }
+
   return readStorageValue<boolean>(STORAGE_KEYS.invoiceViewed) ?? false;
 }
 
-export function setInvoiceViewed(value: boolean) {
+export function setInvoiceViewed(
+  value: boolean,
+  invoice?: Partial<TemporaryInvoiceData>,
+) {
   writeStorageValue(STORAGE_KEYS.invoiceViewed, value);
+
+  const targetInvoice = invoice
+    ? getStoredInvoices().find(
+        (currentInvoice) =>
+          getInvoiceStorageKey(currentInvoice) === getInvoiceStorageKey(invoice),
+      )
+    : getStoredInvoice();
+
+  if (!targetInvoice) {
+    return;
+  }
+
+  const now = Date.now();
+
+  setStoredInvoice({
+    ...targetInvoice,
+    invoiceViewStatus: value
+      ? VIEWED_INVOICE_STATUS
+      : UNVIEWED_INVOICE_STATUS,
+    viewCount: value
+      ? Math.max(targetInvoice.viewCount ?? 0, 1)
+      : targetInvoice.viewCount ?? 0,
+    firstViewedAt: value
+      ? (targetInvoice.firstViewedAt ?? now)
+      : targetInvoice.firstViewedAt ?? null,
+    lastViewedAt: value ? now : targetInvoice.lastViewedAt ?? null,
+    updatedAt: now,
+  });
 }
 
 export function mapCurrencyToLabel(currency: ExtractedAgreement["currency"]) {
@@ -301,7 +556,13 @@ export function extractionToTemporaryInvoice(
     expectedProfit:
       (extraction.totalAmount ?? defaultTemporaryInvoiceData.projectValue) -
       defaultTemporaryInvoiceData.projectExpenses,
-    invoiceViewStatus: "لم تُشاهد بعد",
+    invoiceViewStatus: UNVIEWED_INVOICE_STATUS,
+    viewCount: 0,
+    firstViewedAt: null,
+    lastViewedAt: null,
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    isConfirmed: false,
   };
 }
 
@@ -315,6 +576,33 @@ export function buildPublicInvoiceUrl(token = "demo-token") {
   }
 
   return `${window.location.origin}/i/${token}`;
+}
+
+export function getInvoiceViewStatus(viewCount = 0) {
+  return viewCount > 0 ? VIEWED_INVOICE_STATUS : UNVIEWED_INVOICE_STATUS;
+}
+
+export function isLocalInvoiceId(invoiceId?: string | null) {
+  return !invoiceId || invoiceId === "demo" || invoiceId.startsWith("invoice-");
+}
+
+export function isLocalInvoiceToken(token?: string | null) {
+  return !token || token === "demo-token" || token.startsWith("token-");
+}
+
+export function broadcastInvoiceViewed(token: string) {
+  if (!isBrowser()) {
+    return;
+  }
+
+  writeStorageValue(STORAGE_KEYS.latestViewedInvoiceEvent, {
+    token,
+    viewedAt: Date.now(),
+  });
+}
+
+export function getInvoiceViewedBroadcastKey() {
+  return STORAGE_KEYS.latestViewedInvoiceEvent;
 }
 
 export function buildFollowUpMessage(invoice: TemporaryInvoiceData) {

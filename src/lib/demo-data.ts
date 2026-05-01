@@ -13,7 +13,7 @@ export const demoInvoice = {
   deliveryDate: "15 ديسمبر 2026",
   dueDate: "20 ديسمبر 2026",
   paymentStatus: "مدفوع جزئيًا" as const,
-  invoiceViewStatus: "لم تُشاهد بعد" as const,
+  invoiceViewStatus: "لم يشاهد بعد" as const,
 };
 
 export const demoConversation = `العميل:

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -14,75 +15,160 @@ import {
   Users,
 } from "lucide-react";
 
+import { BrandMark } from "@/components/shared/brand-mark";
 import { Button } from "@/components/ui/button";
+import {
+  getStoredConfirmedInvoices,
+  getStoredInvoice,
+  isLocalInvoiceId,
+} from "@/lib/client-storage";
 import { cn } from "@/lib/utils";
 
-const navItems = [
-  {
-    href: "/app",
-    label: "لوحة التحكم",
-    icon: LayoutDashboard,
-    match: (pathname: string) => pathname === "/app",
-  },
-  {
-    href: "/app/invoices/demo",
-    label: "الفواتير",
-    icon: FileText,
-    match: (pathname: string) => pathname.startsWith("/app/invoices"),
-  },
-  {
-    href: "/app",
-    label: "المشاريع",
-    icon: FolderKanban,
-    match: () => false,
-  },
-  {
-    href: "/app/invoices/demo/follow-up",
-    label: "رسائل المتابعة",
-    icon: MessageSquareMore,
-    match: (pathname: string) => pathname.includes("/follow-up"),
-  },
-  {
-    href: "/app#clients",
-    label: "العملاء",
-    icon: Users,
-    match: (pathname: string) => pathname.startsWith("/app/clients"),
-  },
-  {
-    href: "/app#assistant",
-    label: "المساعدة الذكية",
-    icon: Sparkles,
-    match: (pathname: string) => pathname.startsWith("/app/assistant"),
-  },
-] as const;
+type SidebarItemId =
+  | "dashboard"
+  | "invoices"
+  | "projects"
+  | "follow-up"
+  | "customers"
+  | "assistant";
+
+function getActiveSidebarItem(pathname: string): SidebarItemId | null {
+  if (pathname === "/app") {
+    return "dashboard";
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  const isAppRoute = segments[0] === "app";
+
+  if (!isAppRoute) {
+    return null;
+  }
+
+  if (pathname === "/app/new") {
+    return null;
+  }
+
+  const isFollowUpRoute =
+    segments[1] === "invoices" && segments[3] === "follow-up";
+
+  if (isFollowUpRoute) {
+    return "follow-up";
+  }
+
+  if (segments[1] === "invoices") {
+    return "invoices";
+  }
+
+  if (segments[1] === "projects") {
+    return "projects";
+  }
+
+  if (segments[1] === "customers" || segments[1] === "clients") {
+    return "customers";
+  }
+
+  if (segments[1] === "assistant") {
+    return "assistant";
+  }
+
+  return null;
+}
 
 export function Sidebar() {
   const pathname = usePathname();
+  const [latestInvoiceHref, setLatestInvoiceHref] = useState("/app#recent-invoices");
+  const [latestFollowUpHref, setLatestFollowUpHref] = useState("/app/new");
+  const activeItem = getActiveSidebarItem(pathname);
+  const isCreateInvoicePage = pathname === "/app/new";
+
+  useEffect(() => {
+    function syncInvoiceLinks() {
+      const latestInvoice = getStoredConfirmedInvoices()[0] ?? getStoredInvoice();
+      const invoiceId =
+        latestInvoice?.id && !isLocalInvoiceId(latestInvoice.id)
+          ? latestInvoice.id
+          : latestInvoice?.id;
+
+      if (!invoiceId) {
+        setLatestInvoiceHref("/app#recent-invoices");
+        setLatestFollowUpHref("/app/new");
+        return;
+      }
+
+      setLatestInvoiceHref(`/app/invoices/${invoiceId}`);
+      setLatestFollowUpHref(`/app/invoices/${invoiceId}/follow-up`);
+    }
+
+    syncInvoiceLinks();
+    window.addEventListener("storage", syncInvoiceLinks);
+
+    return () => {
+      window.removeEventListener("storage", syncInvoiceLinks);
+    };
+  }, [pathname]);
+
+  const navItems = [
+    {
+      id: "dashboard",
+      href: "/app",
+      label: "لوحة التحكم",
+      icon: LayoutDashboard,
+    },
+    {
+      id: "invoices",
+      href: latestInvoiceHref,
+      label: "الفواتير",
+      icon: FileText,
+    },
+    {
+      id: "projects",
+      href: "/app",
+      label: "المشاريع",
+      icon: FolderKanban,
+    },
+    {
+      id: "follow-up",
+      href: latestFollowUpHref,
+      label: "رسائل المتابعة",
+      icon: MessageSquareMore,
+    },
+    {
+      id: "customers",
+      href: "/app#clients",
+      label: "العملاء",
+      icon: Users,
+    },
+    {
+      id: "assistant",
+      href: "/app#assistant",
+      label: "المساعدة الذكية",
+      icon: Sparkles,
+    },
+  ] as const;
 
   return (
     <aside className="w-full shrink-0 lg:sticky lg:top-7 lg:w-[308px] xl:w-[320px]">
       <div className="overflow-hidden rounded-[2.15rem] border border-white/70 bg-sidebar/88 shadow-[0_28px_90px_-58px_rgba(0,72,54,0.42)] backdrop-blur-xl">
         <div className="border-b border-sidebar-border/70 px-5 py-5">
           <div className="rounded-[1.75rem] bg-[linear-gradient(135deg,rgba(0,122,90,0.12),rgba(255,255,255,0.86))] px-4 py-4">
-            <div className="flex items-center justify-between gap-4">
-              <div className="space-y-1">
-                <p className="text-base font-extrabold text-sidebar-foreground">
-                  مساحة العمل
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  نسخة تجريبية للفريلانسر السعودي
-                </p>
-              </div>
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-primary shadow-sm">
-                <Sparkles className="size-5" />
-              </div>
+            <BrandMark variant="header" subtitle={false} className="sm:hidden" />
+
+            <div className="hidden sm:block">
+              <BrandMark
+                variant="app"
+                subtitle="مساعدك المالي الذكي"
+                className="justify-start"
+              />
+              <p className="mt-3 text-xs leading-6 text-muted-foreground">
+                نسخة تجريبية للفريلانسر السعودي بواجهة مرتبة وواضحة.
+              </p>
             </div>
           </div>
         </div>
 
         <nav className="space-y-1.5 px-3 py-4">
           {navItems.map((item) => {
-            const isActive = item.match(pathname);
+            const isActive = activeItem === item.id;
             const Icon = item.icon;
 
             return (
@@ -102,7 +188,7 @@ export function Sidebar() {
                       "flex h-10 w-10 items-center justify-center rounded-2xl border transition-colors",
                       isActive
                         ? "border-primary/10 bg-white text-primary shadow-sm"
-                        : "border-border/70 bg-white/78 text-primary",
+                        : "border-border/70 bg-white/78 text-primary group-hover:border-primary/10 group-hover:bg-white group-hover:text-primary",
                     )}
                   >
                     <Icon className="size-4" />
@@ -126,7 +212,11 @@ export function Sidebar() {
           <div className="space-y-2">
             <Button
               asChild
-              className="h-11 w-full justify-between rounded-2xl px-4 text-sm font-bold shadow-[0_18px_34px_-24px_rgba(0,122,90,0.7)]"
+              className={cn(
+                "h-11 w-full justify-between rounded-2xl px-4 text-sm font-bold shadow-[0_18px_34px_-24px_rgba(0,122,90,0.7)]",
+                isCreateInvoicePage &&
+                  "bg-[#0B6C55] shadow-[0_18px_34px_-24px_rgba(11,108,85,0.78)] hover:bg-[#0B6C55]",
+              )}
             >
               <Link href="/app/new">
                 <span>إنشاء فاتورة</span>

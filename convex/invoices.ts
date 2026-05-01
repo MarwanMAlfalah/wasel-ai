@@ -275,6 +275,7 @@ export const listInvoices = query({
       clientName: v.string(),
       service: v.string(),
       totalAmount: v.number(),
+      currency: v.string(),
       remainingAmount: v.number(),
       paymentStatus: v.string(),
       dueDate: v.union(v.string(), v.null()),
@@ -291,7 +292,7 @@ export const listInvoices = query({
       .order("desc")
       .collect();
 
-    return Promise.all(
+    const invoiceList = await Promise.all(
       invoices.map(async (invoice) => {
         const link = await ctx.db
           .query("invoiceLinks")
@@ -307,6 +308,7 @@ export const listInvoices = query({
           clientName: invoice.clientName,
           service: invoice.service,
           totalAmount: invoice.totalAmount,
+          currency: invoice.currency,
           remainingAmount: invoice.remainingAmount,
           paymentStatus: invoice.paymentStatus,
           dueDate: invoice.dueDate,
@@ -315,6 +317,8 @@ export const listInvoices = query({
         };
       }),
     );
+
+    return invoiceList.sort((left, right) => right.createdAt - left.createdAt);
   },
 });
 

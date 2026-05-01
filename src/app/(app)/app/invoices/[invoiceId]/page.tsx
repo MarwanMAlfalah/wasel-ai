@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
@@ -27,11 +27,17 @@ import {
   buildPublicInvoiceUrl,
   defaultTemporaryInvoiceData,
   expenseCategories,
+  getInvoiceViewStatus,
+  getInvoiceViewedBroadcastKey,
   getStoredExpenses,
   getStoredFinancialSummary,
   getStoredInvoice,
+  getStoredInvoiceById,
+  isLocalInvoiceId,
   setStoredExpenses,
   setStoredInvoice,
+  setLatestStoredInvoice,
+  upsertStoredInvoice,
   type TemporaryExpenseCategory,
   type TemporaryExpenseData,
   type TemporaryFinancialSummary,
@@ -55,6 +61,7 @@ export default function InvoiceDetailPage() {
     useState<TemporaryFinancialSummary | null>(null);
   const [usesLocalExpenseFallback, setUsesLocalExpenseFallback] = useState(false);
   const [isSavingExpense, setIsSavingExpense] = useState(false);
+  const [isRefreshingViewStatus, setIsRefreshingViewStatus] = useState(false);
   const [expenseForm, setExpenseForm] = useState<ExpenseFormState>({
     amount: "",
     currency: defaultTemporaryInvoiceData.currencyShort,
@@ -69,149 +76,191 @@ export default function InvoiceDetailPage() {
   const showFallbackNote =
     usesLocalExpenseFallback ||
     !process.env.NEXT_PUBLIC_CONVEX_URL ||
-    params?.invoiceId === "demo";
+    isLocalInvoiceId(params?.invoiceId);
 
-  useEffect(() => {
-    let isActive = true;
-
-    queueMicrotask(() => {
-      if (!isActive) {
-        return;
-      }
-
-      const storedInvoice = getStoredInvoice() ?? defaultTemporaryInvoiceData;
-
-      setInvoice(storedInvoice);
-      setExpenses(getStoredExpenses(storedInvoice));
-      setFinancialSummary(getStoredFinancialSummary(storedInvoice));
-      setUsesLocalExpenseFallback(!process.env.NEXT_PUBLIC_CONVEX_URL);
-      setExpenseForm((current) => ({
-        ...current,
-        currency: storedInvoice.currencyShort,
-      }));
-      setIsHydrated(true);
-    });
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
-
-  useEffect(() => {
+  const loadInvoiceDetails = useCallback(async () => {
     const invoiceId = params?.invoiceId;
+    const storedInvoice =
+      (invoiceId ? getStoredInvoiceById(invoiceId) : null) ??
+      getStoredInvoice() ??
+      defaultTemporaryInvoiceData;
 
-    if (!process.env.NEXT_PUBLIC_CONVEX_URL || !invoiceId || invoiceId === "demo") {
+    setLatestStoredInvoice(storedInvoice);
+    setInvoice(storedInvoice);
+    setExpenses(getStoredExpenses(storedInvoice));
+    setFinancialSummary(getStoredFinancialSummary(storedInvoice));
+    setUsesLocalExpenseFallback(!process.env.NEXT_PUBLIC_CONVEX_URL);
+    setExpenseForm((current) => ({
+      ...current,
+      currency: storedInvoice.currencyShort,
+    }));
+    setIsHydrated(true);
+
+    if (
+      !process.env.NEXT_PUBLIC_CONVEX_URL ||
+      !invoiceId ||
+      isLocalInvoiceId(invoiceId)
+    ) {
       return;
     }
 
-    let isActive = true;
+    try {
+      const [invoiceResponse, expensesResponse, summaryResponse] =
+        await Promise.all([
+          fetch(`/api/invoices/${invoiceId}`, {
+            cache: "no-store",
+          }),
+          fetch(`/api/invoices/${invoiceId}/expenses`, {
+            cache: "no-store",
+          }),
+          fetch(`/api/invoices/${invoiceId}/financial-summary`, {
+            cache: "no-store",
+          }),
+        ]);
 
-    async function loadInvoice() {
-      try {
-        const [invoiceResponse, expensesResponse, summaryResponse] =
-          await Promise.all([
-            fetch(`/api/invoices/${invoiceId}`),
-            fetch(`/api/invoices/${invoiceId}/expenses`),
-            fetch(`/api/invoices/${invoiceId}/financial-summary`),
-          ]);
+      if (!invoiceResponse.ok || !expensesResponse.ok || !summaryResponse.ok) {
+        throw new Error("Load invoice details request failed");
+      }
 
-        if (!invoiceResponse.ok || !expensesResponse.ok || !summaryResponse.ok) {
-          throw new Error("Load invoice details request failed");
-        }
-
-        const invoiceResult = (await invoiceResponse.json()) as {
-          invoice: {
-            invoiceId: string;
-            workspaceId: string;
-            token: string;
-            invoiceNumber: string;
-            freelancerName: string;
-            clientName: string;
-            service: string;
-            totalAmount: number;
-            currency: string;
-            paidAmount: number;
-            remainingAmount: number;
-            deliveryDate: string | null;
-            dueDate: string | null;
-            paymentStatus: string;
-            agreementTone: string;
-            clientUrgency: string;
-            followUpStyle: string;
-            smartInsight: string;
-            confidence: number;
-            viewCount: number;
-            firstViewedAt: number | null;
-            lastViewedAt: number | null;
-          };
+      const invoiceResult = (await invoiceResponse.json()) as {
+        invoice: {
+          invoiceId: string;
+          workspaceId: string;
+          token: string;
+          invoiceNumber: string;
+          freelancerName: string;
+          clientName: string;
+          service: string;
+          totalAmount: number;
+          currency: string;
+          paidAmount: number;
+          remainingAmount: number;
+          deliveryDate: string | null;
+          dueDate: string | null;
+          paymentStatus: string;
+          agreementTone: string;
+          clientUrgency: string;
+          followUpStyle: string;
+          smartInsight: string;
+          confidence: number;
+          viewCount: number;
+          firstViewedAt: number | null;
+          lastViewedAt: number | null;
+          createdAt: number;
+          updatedAt: number;
         };
-        const expensesResult = (await expensesResponse.json()) as {
-          expenses: TemporaryExpenseData[];
-        };
-        const summaryResult = (await summaryResponse.json()) as {
-          summary: TemporaryFinancialSummary;
-        };
+      };
+      const expensesResult = (await expensesResponse.json()) as {
+        expenses: TemporaryExpenseData[];
+      };
+      const summaryResult = (await summaryResponse.json()) as {
+        summary: TemporaryFinancialSummary;
+      };
 
-        if (!isActive) {
-          return;
-        }
+      const nextInvoice = applyFinancialSummaryToInvoice(
+        {
+          ...(getStoredInvoiceById(invoiceId) ??
+            getStoredInvoice() ??
+            defaultTemporaryInvoiceData),
+          id: invoiceResult.invoice.invoiceId,
+          workspaceId: invoiceResult.invoice.workspaceId,
+          token: invoiceResult.invoice.token,
+          invoiceNumber: invoiceResult.invoice.invoiceNumber,
+          freelancerName: invoiceResult.invoice.freelancerName,
+          clientName: invoiceResult.invoice.clientName,
+          serviceName: invoiceResult.invoice.service,
+          currencyLabel: invoiceResult.invoice.currency,
+          currencyShort: invoiceResult.invoice.currency,
+          deliveryDate: invoiceResult.invoice.deliveryDate ?? "",
+          dueDate: invoiceResult.invoice.dueDate ?? "",
+          paymentStatus:
+            invoiceResult.invoice.paymentStatus as TemporaryInvoiceData["paymentStatus"],
+          invoiceViewStatus: getInvoiceViewStatus(invoiceResult.invoice.viewCount),
+          viewCount: invoiceResult.invoice.viewCount,
+          firstViewedAt: invoiceResult.invoice.firstViewedAt,
+          lastViewedAt: invoiceResult.invoice.lastViewedAt,
+          projectValue: invoiceResult.invoice.totalAmount,
+          amountPaid: invoiceResult.invoice.paidAmount,
+          amountRemaining: invoiceResult.invoice.remainingAmount,
+          createdAt: invoiceResult.invoice.createdAt,
+          updatedAt: invoiceResult.invoice.updatedAt,
+          isConfirmed: true,
+        },
+        summaryResult.summary,
+      );
 
-        const nextInvoice = applyFinancialSummaryToInvoice(
-          {
-            ...(getStoredInvoice() ?? defaultTemporaryInvoiceData),
-            id: invoiceResult.invoice.invoiceId,
-            workspaceId: invoiceResult.invoice.workspaceId,
-            token: invoiceResult.invoice.token,
-            invoiceNumber: invoiceResult.invoice.invoiceNumber,
-            freelancerName: invoiceResult.invoice.freelancerName,
-            clientName: invoiceResult.invoice.clientName,
-            serviceName: invoiceResult.invoice.service,
-            currencyLabel: invoiceResult.invoice.currency,
-            currencyShort: invoiceResult.invoice.currency,
-            deliveryDate: invoiceResult.invoice.deliveryDate ?? "",
-            dueDate: invoiceResult.invoice.dueDate ?? "",
-            paymentStatus:
-              invoiceResult.invoice.paymentStatus as TemporaryInvoiceData["paymentStatus"],
-            viewCount: invoiceResult.invoice.viewCount,
-            firstViewedAt: invoiceResult.invoice.firstViewedAt,
-            lastViewedAt: invoiceResult.invoice.lastViewedAt,
-            projectValue: invoiceResult.invoice.totalAmount,
-            amountPaid: invoiceResult.invoice.paidAmount,
-            amountRemaining: invoiceResult.invoice.remainingAmount,
-          },
-          summaryResult.summary,
-        );
+      setInvoice(nextInvoice);
+      upsertStoredInvoice(nextInvoice, { setLatest: false });
+      setLatestStoredInvoice(nextInvoice);
+      setExpenses(expensesResult.expenses);
+      setStoredExpenses(nextInvoice, expensesResult.expenses);
+      setFinancialSummary(summaryResult.summary);
+      setUsesLocalExpenseFallback(false);
+      setExpenseForm((current) => ({
+        ...current,
+        currency: nextInvoice.currencyShort,
+      }));
+    } catch {
+      const fallbackInvoice =
+        (invoiceId ? getStoredInvoiceById(invoiceId) : null) ??
+        getStoredInvoice() ??
+        defaultTemporaryInvoiceData;
 
-        setInvoice(nextInvoice);
-        setStoredInvoice(nextInvoice);
-        setExpenses(expensesResult.expenses);
-        setStoredExpenses(nextInvoice, expensesResult.expenses);
-        setFinancialSummary(summaryResult.summary);
-        setUsesLocalExpenseFallback(false);
-        setExpenseForm((current) => ({
-          ...current,
-          currency: nextInvoice.currencyShort,
-        }));
-      } catch {
-        if (!isActive) {
-          return;
-        }
+      setInvoice(fallbackInvoice);
+      setExpenses(getStoredExpenses(fallbackInvoice));
+      setFinancialSummary(getStoredFinancialSummary(fallbackInvoice));
+      setUsesLocalExpenseFallback(true);
+    }
+  }, [params?.invoiceId]);
 
-        const fallbackInvoice = getStoredInvoice() ?? defaultTemporaryInvoiceData;
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadInvoiceDetails();
+    });
+  }, [loadInvoiceDetails]);
 
-        setInvoice(fallbackInvoice);
-        setExpenses(getStoredExpenses(fallbackInvoice));
-        setFinancialSummary(getStoredFinancialSummary(fallbackInvoice));
-        setUsesLocalExpenseFallback(true);
+  useEffect(() => {
+    function handleFocusRefresh() {
+      void loadInvoiceDetails();
+    }
+
+    function handleVisibilityRefresh() {
+      if (document.visibilityState === "visible") {
+        void loadInvoiceDetails();
       }
     }
 
-    void loadInvoice();
+    function handleStorageRefresh(event: StorageEvent) {
+      if (
+        event.key === getInvoiceViewedBroadcastKey() ||
+        event.key === "wasil:invoices"
+      ) {
+        void loadInvoiceDetails();
+      }
+    }
+
+    window.addEventListener("focus", handleFocusRefresh);
+    document.addEventListener("visibilitychange", handleVisibilityRefresh);
+    window.addEventListener("storage", handleStorageRefresh);
+
+    const intervalId =
+      process.env.NEXT_PUBLIC_CONVEX_URL &&
+      !isLocalInvoiceId(params?.invoiceId)
+        ? window.setInterval(() => {
+            void loadInvoiceDetails();
+          }, 10000)
+        : null;
 
     return () => {
-      isActive = false;
+      window.removeEventListener("focus", handleFocusRefresh);
+      document.removeEventListener("visibilitychange", handleVisibilityRefresh);
+      window.removeEventListener("storage", handleStorageRefresh);
+
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
     };
-  }, [params?.invoiceId]);
+  }, [loadInvoiceDetails, params?.invoiceId]);
 
   function updateExpenseField<Key extends keyof ExpenseFormState>(
     key: Key,
@@ -241,6 +290,16 @@ export default function InvoiceDetailPage() {
     showToast("تم نسخ رابط الفاتورة");
   }
 
+  async function handleRefreshViewStatus() {
+    try {
+      setIsRefreshingViewStatus(true);
+      await loadInvoiceDetails();
+      showToast("تم تحديث حالة المشاهدة");
+    } finally {
+      setIsRefreshingViewStatus(false);
+    }
+  }
+
   async function handleSaveExpense() {
     const amount = Number(expenseForm.amount.replace(/[^\d.]/g, ""));
 
@@ -262,7 +321,7 @@ export default function InvoiceDetailPage() {
       if (
         process.env.NEXT_PUBLIC_CONVEX_URL &&
         invoice.id &&
-        params?.invoiceId !== "demo"
+        !isLocalInvoiceId(params?.invoiceId)
       ) {
         const response = await fetch(`/api/invoices/${invoice.id}/expenses`, {
           method: "POST",
@@ -339,9 +398,15 @@ export default function InvoiceDetailPage() {
     <div className="space-y-6 lg:space-y-7">
       <PageHeader
         title="الفاتورة جاهزة"
-        description="هذه صفحة ثابتة لعرض شكل الفاتورة الداخلية والرابط الذكي والملخص المالي قبل ربطها بالبيانات الفعلية."
+        description="هذه الصفحة تعرض حالة الفاتورة الحقيقية والرابط الذكي والملخص المالي لكل فاتورة على حدة."
         badge={<StatusBadge status={invoice.paymentStatus} />}
       />
+
+      {showFallbackNote ? (
+        <section className="rounded-[1.7rem] border border-amber-200/80 bg-amber-50/85 px-5 py-4 text-sm leading-7 text-amber-800 shadow-[0_18px_48px_-44px_rgba(146,98,10,0.14)]">
+          يتم حفظ الفواتير مؤقتًا على هذا الجهاز
+        </section>
+      ) : null}
 
       <section className="grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="rounded-[1.9rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(247,251,249,0.95))] p-5 shadow-[0_22px_62px_-50px_rgba(0,72,54,0.22)] sm:p-6">
@@ -382,9 +447,35 @@ export default function InvoiceDetailPage() {
             <InvoiceLine label="موعد التسليم" value={invoice.deliveryDate} />
             <InvoiceLine label="موعد الاستحقاق" value={invoice.dueDate} />
             <div className="sm:col-span-2 rounded-[1.25rem] border border-input bg-background px-4 py-4">
-              <p className="text-sm font-medium text-muted-foreground">الحالة</p>
-              <div className="mt-2">
-                <StatusBadge status={invoice.paymentStatus} />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm font-medium text-muted-foreground">
+                  حالة المشاهدة
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="rounded-2xl px-4"
+                  onClick={handleRefreshViewStatus}
+                  disabled={isRefreshingViewStatus}
+                >
+                  {isRefreshingViewStatus ? "جاري التحديث..." : "تحديث الحالة"}
+                </Button>
+              </div>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <StatusBadge status={getInvoiceViewStatus(invoice.viewCount ?? 0)} />
+                <span className="text-sm text-muted-foreground">
+                  {invoice.viewCount && invoice.viewCount > 0
+                    ? "تمت المشاهدة"
+                    : "لم يشاهد بعد"}
+                </span>
+              </div>
+              <div className="mt-3 rounded-[1rem] border border-white/70 bg-background/70 px-3 py-3">
+                <p className="text-sm font-medium text-muted-foreground">
+                  حالة الدفع
+                </p>
+                <div className="mt-2">
+                  <StatusBadge status={invoice.paymentStatus} />
+                </div>
               </div>
             </div>
           </div>
@@ -408,7 +499,7 @@ export default function InvoiceDetailPage() {
               <p className="mt-2 text-sm text-primary-foreground/82">
                 {invoice.viewCount && invoice.viewCount > 0
                   ? "العميل شاهد الفاتورة"
-                  : "لم يشاهدها العميل بعد"}
+                  : "لم يشاهد بعد"}
               </p>
             </div>
 
@@ -454,7 +545,7 @@ export default function InvoiceDetailPage() {
             label="تنبيه واصل"
             title="الفاتورة جاهزة للمشاركة"
             description="الدفعة المتبقية واضحة، ووقت الاستحقاق قريب بما يكفي لتجهيز متابعة قصيرة ولطيفة عند الحاجة."
-            badge={<StatusBadge status={invoice.viewCount && invoice.viewCount > 0 ? "تمت المشاهدة" : "لم تُشاهد بعد"} />}
+            badge={<StatusBadge status={getInvoiceViewStatus(invoice.viewCount ?? 0)} />}
           />
         </div>
       </section>

@@ -13,9 +13,13 @@ import { ArabicNumber } from "@/components/shared/arabic-number";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { Button } from "@/components/ui/button";
 import {
+  broadcastInvoiceViewed,
   defaultTemporaryInvoiceData,
-  getStoredInvoice,
-  setInvoiceViewed,
+  getInvoiceViewStatus,
+  getStoredInvoiceByToken,
+  isLocalInvoiceToken,
+  markStoredInvoiceViewed,
+  upsertStoredInvoice,
   type TemporaryInvoiceData,
 } from "@/lib/client-storage";
 
@@ -23,10 +27,12 @@ export default function PublicInvoicePage() {
   const params = useParams<{ token: string }>();
   const [invoice, setInvoice] =
     useState<TemporaryInvoiceData>(defaultTemporaryInvoiceData);
+  const [viewRegistered, setViewRegistered] = useState(false);
 
   useEffect(() => {
     const token = params?.token ?? "demo-token";
-    const storedInvoice = getStoredInvoice() ?? defaultTemporaryInvoiceData;
+    const storedInvoice =
+      getStoredInvoiceByToken(token) ?? defaultTemporaryInvoiceData;
     let isActive = true;
 
     async function loadAndTrackInvoice() {
@@ -36,7 +42,10 @@ export default function PublicInvoicePage() {
         }
       });
 
-      if (process.env.NEXT_PUBLIC_CONVEX_URL && token !== "demo-token") {
+      if (
+        process.env.NEXT_PUBLIC_CONVEX_URL &&
+        !isLocalInvoiceToken(token)
+      ) {
         try {
           const invoiceResponse = await fetch(`/api/public-invoices/${token}`);
 
@@ -80,27 +89,113 @@ export default function PublicInvoicePage() {
                 dueDate: invoicePayload.invoice.dueDate ?? "",
                 paymentStatus:
                   invoicePayload.invoice.paymentStatus as TemporaryInvoiceData["paymentStatus"],
+                invoiceViewStatus: getInvoiceViewStatus(
+                  invoicePayload.invoice.viewCount,
+                ),
                 viewCount: invoicePayload.invoice.viewCount,
                 firstViewedAt: invoicePayload.invoice.firstViewedAt,
                 lastViewedAt: invoicePayload.invoice.lastViewedAt,
               };
 
               setInvoice(nextInvoice);
+              upsertStoredInvoice(nextInvoice, { setLatest: false });
             }
           }
 
-          await fetch("/api/public-invoices/view", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ token }),
-          });
+          const viewedInvoiceSessionKey = `viewed-invoice-token-${token}`;
+          const alreadyViewedInSession =
+            typeof window !== "undefined" &&
+            window.sessionStorage.getItem(viewedInvoiceSessionKey) === "true";
+
+          if (!alreadyViewedInSession) {
+            if (typeof window !== "undefined") {
+              window.sessionStorage.setItem(viewedInvoiceSessionKey, "pending");
+            }
+
+            const viewResponse = await fetch("/api/public-invoices/view", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ token }),
+            });
+
+            if (!viewResponse.ok) {
+              throw new Error("Track invoice view request failed");
+            }
+
+            const viewResult = (await viewResponse.json()) as {
+              result: {
+                invoiceId: string;
+                viewCount: number;
+                firstViewedAt: number | null;
+                lastViewedAt: number;
+              };
+            };
+
+            if (typeof window !== "undefined") {
+              window.sessionStorage.setItem(viewedInvoiceSessionKey, "true");
+            }
+
+            if (isActive) {
+              const baseInvoice = getStoredInvoiceByToken(token) ?? storedInvoice;
+              const nextInvoice = {
+                ...baseInvoice,
+                id: viewResult.result.invoiceId,
+                token,
+                invoiceViewStatus: getInvoiceViewStatus(viewResult.result.viewCount),
+                viewCount: viewResult.result.viewCount,
+                firstViewedAt: viewResult.result.firstViewedAt,
+                lastViewedAt: viewResult.result.lastViewedAt,
+                updatedAt: viewResult.result.lastViewedAt,
+              } satisfies TemporaryInvoiceData;
+
+              upsertStoredInvoice(nextInvoice, { setLatest: false });
+              broadcastInvoiceViewed(token);
+              setViewRegistered(true);
+              setInvoice((currentInvoice) => ({
+                ...currentInvoice,
+                ...nextInvoice,
+              }));
+            }
+          }
         } catch {
-          setInvoiceViewed(true);
+          if (typeof window !== "undefined") {
+            window.sessionStorage.removeItem(`viewed-invoice-token-${token}`);
+          }
+
+          const localViewedInvoice = markStoredInvoiceViewed(token);
+
+          if (isActive && localViewedInvoice) {
+            broadcastInvoiceViewed(token);
+            setInvoice(localViewedInvoice);
+            setViewRegistered(true);
+          }
         }
       } else {
-        setInvoiceViewed(true);
+        const viewedInvoiceSessionKey = `viewed-invoice-token-${token}`;
+        const alreadyViewedInSession =
+          typeof window !== "undefined" &&
+          window.sessionStorage.getItem(viewedInvoiceSessionKey) === "true";
+
+        if (!alreadyViewedInSession) {
+          if (typeof window !== "undefined") {
+            window.sessionStorage.setItem(viewedInvoiceSessionKey, "pending");
+          }
+
+          const localViewedInvoice = markStoredInvoiceViewed(token);
+
+          if (isActive && localViewedInvoice) {
+            if (typeof window !== "undefined") {
+              window.sessionStorage.setItem(viewedInvoiceSessionKey, "true");
+            }
+            broadcastInvoiceViewed(token);
+            setInvoice(localViewedInvoice);
+            setViewRegistered(true);
+          } else if (typeof window !== "undefined") {
+            window.sessionStorage.removeItem(viewedInvoiceSessionKey);
+          }
+        }
       }
     }
 
@@ -135,9 +230,11 @@ export default function PublicInvoicePage() {
           </div>
         </div>
 
-        <div className="mt-5 rounded-[1.35rem] border border-teal-200/80 bg-teal-50/90 px-4 py-3 text-sm font-medium text-teal-700">
-          تم تسجيل مشاهدة الفاتورة
-        </div>
+        {viewRegistered ? (
+          <div className="mt-5 rounded-[1.35rem] border border-teal-200/80 bg-teal-50/90 px-4 py-3 text-sm font-medium text-teal-700">
+            تم تسجيل مشاهدة الفاتورة
+          </div>
+        ) : null}
 
         <div className="mt-6 grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
           <div className="rounded-[1.75rem] border border-white/70 bg-white/88 p-5 shadow-[0_18px_48px_-42px_rgba(0,72,54,0.16)]">

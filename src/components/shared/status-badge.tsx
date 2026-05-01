@@ -9,6 +9,7 @@ const statusStyles = {
   "غير محددة": "border-zinc-200 bg-zinc-50 text-zinc-700",
   "تمت المشاهدة": "border-teal-200 bg-teal-50 text-teal-700",
   "لم تُشاهد بعد": "border-rose-200 bg-rose-50 text-rose-700",
+  "لم يشاهد بعد": "border-rose-200 bg-rose-50 text-rose-700",
 } as const;
 
 export type StatusBadgeValue = keyof typeof statusStyles;

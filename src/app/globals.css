@@ -49,38 +49,38 @@
 }
 
 :root {
-  --background: oklch(0.987 0.013 163.17);
-  --foreground: oklch(0.244 0.037 181.27);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.244 0.037 181.27);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.244 0.037 181.27);
-  --primary: oklch(0.598 0.145 164.17);
-  --primary-foreground: oklch(0.989 0.01 163.34);
-  --secondary: oklch(0.953 0.025 167.2);
-  --secondary-foreground: oklch(0.304 0.047 180.42);
-  --muted: oklch(0.968 0.013 170.33);
-  --muted-foreground: oklch(0.515 0.03 181.42);
-  --accent: oklch(0.929 0.055 165.76);
-  --accent-foreground: oklch(0.284 0.05 182.23);
-  --destructive: oklch(0.612 0.203 27.45);
-  --border: oklch(0.901 0.021 169.68);
-  --input: oklch(0.901 0.021 169.68);
-  --ring: oklch(0.649 0.138 165.08);
-  --chart-1: oklch(0.649 0.138 165.08);
-  --chart-2: oklch(0.758 0.109 157.66);
-  --chart-3: oklch(0.539 0.088 209.41);
-  --chart-4: oklch(0.718 0.106 110.35);
-  --chart-5: oklch(0.612 0.203 27.45);
+  --background: #f7f6ed;
+  --foreground: #0b2d26;
+  --card: #ffffff;
+  --card-foreground: #0b2d26;
+  --popover: #ffffff;
+  --popover-foreground: #0b2d26;
+  --primary: #007a5a;
+  --primary-foreground: #f8fbf8;
+  --secondary: #eef8f1;
+  --secondary-foreground: #0b2d26;
+  --muted: #f1efe5;
+  --muted-foreground: #697c75;
+  --accent: #eef8f1;
+  --accent-foreground: #0b2d26;
+  --destructive: #c84d3a;
+  --border: #e8e3d6;
+  --input: #e8e3d6;
+  --ring: #007a5a;
+  --chart-1: #007a5a;
+  --chart-2: #2f8f74;
+  --chart-3: #84b79a;
+  --chart-4: #d9ebdf;
+  --chart-5: #c84d3a;
   --radius: 1.25rem;
-  --sidebar: oklch(0.991 0.008 164.76);
-  --sidebar-foreground: oklch(0.244 0.037 181.27);
-  --sidebar-primary: oklch(0.598 0.145 164.17);
-  --sidebar-primary-foreground: oklch(0.989 0.01 163.34);
-  --sidebar-accent: oklch(0.953 0.025 167.2);
-  --sidebar-accent-foreground: oklch(0.304 0.047 180.42);
-  --sidebar-border: oklch(0.901 0.021 169.68);
-  --sidebar-ring: oklch(0.649 0.138 165.08);
+  --sidebar: #fbfaf4;
+  --sidebar-foreground: #0b2d26;
+  --sidebar-primary: #007a5a;
+  --sidebar-primary-foreground: #f8fbf8;
+  --sidebar-accent: #eef8f1;
+  --sidebar-accent-foreground: #0b2d26;
+  --sidebar-border: #e8e3d6;
+  --sidebar-ring: #007a5a;
 }
 
 .dark {
@@ -134,9 +134,9 @@
   body {
     @apply bg-background text-foreground;
     background-image:
-      radial-gradient(circle at top right, rgba(132, 209, 171, 0.26), transparent 24rem),
-      radial-gradient(circle at bottom left, rgba(0, 122, 90, 0.08), transparent 28rem),
-      linear-gradient(180deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0));
+      radial-gradient(circle at top right, rgba(0, 122, 90, 0.08), transparent 24rem),
+      radial-gradient(circle at 12% 22%, rgba(238, 248, 241, 0.88), transparent 20rem),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
     background-attachment: fixed;
     text-rendering: optimizeLegibility;
     font-feature-settings: "ss01" 1, "kern" 1;
