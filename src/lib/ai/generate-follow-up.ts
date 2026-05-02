@@ -111,7 +111,7 @@ function isFriendlyTone(agreementTone: string | null) {
     return false;
   }
 
-  return /(ودي|لطيف|إيجابي|مرن|مريح|أهلًا|اهلا|متفقين|تمام|ودي)/.test(
+  return /(ودي|لطيف|إيجابي|مرن|مريح|أهلًا|اهلا|متفقين|تمام)/.test(
     agreementTone,
   );
 }
@@ -280,12 +280,12 @@ function buildFallbackMessageBody(
 
   const opening =
     toneLabel === "متابعة بعد تأخير"
-      ? `${client}، يعطيك العافية.`
+      ? `${client}، يعطيك العافية. أبغى أتابع معك بخصوص فاتورة متأخرة.`
       : `${client}، يعطيك العافية.`;
 
   const reminder =
     toneLabel === "تذكير لطيف"
-      ? `${isPartial ? "حبيت أذكّرك" : "حبيت أذكّرك"}${service}، والمتبقي ${amount}${dueDate}.`
+      ? `${isPartial ? "حبيت أذكّرك بخصوص المتبقي" : "حبيت أذكّرك"}${service}، والمتبقي ${amount}${dueDate}.`
       : toneLabel === "متابعة مباشرة"
         ? `${isPartial ? "حبيت أتابع معك بخصوص المتبقي" : "حبيت أتابع معك بخصوص الفاتورة"}${service}، والمبلغ المطلوب ${amount}${dueDate}.`
         : toneLabel === "متابعة بعد تأخير"

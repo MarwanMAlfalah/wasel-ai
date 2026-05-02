@@ -828,7 +828,7 @@ function SummaryAmountRow({
   return (
     <div className="flex items-center justify-between gap-4 rounded-[1.2rem] border border-white/70 bg-background/85 px-4 py-3 shadow-sm">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className={emphasis ? "text-foreground" : "text-foreground"}>
+      <span className="text-foreground">
         <span
           className={`inline-flex items-center gap-2 text-sm font-bold ${
             emphasis ? "text-lg font-extrabold" : ""
