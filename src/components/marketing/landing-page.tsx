@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -8,7 +9,6 @@ import {
   Bot,
   CheckCircle2,
   CircleDollarSign,
-  FileText,
   FolderKanban,
   Languages,
   LayoutDashboard,
@@ -26,7 +26,7 @@ import {
 } from "framer-motion";
 import type { Variants } from "framer-motion";
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { DeviceFrame } from "@/components/marketing/device-frame";
 import { FaqAccordion } from "@/components/marketing/faq-accordion";
@@ -663,267 +663,147 @@ function FooterSection() {
 
 function HeroVisualComposition() {
   return (
-    <div className="relative mx-auto w-full max-w-[39rem]">
-      <div className="absolute inset-x-10 top-6 h-44 rounded-full bg-[#E4F0E7] blur-3xl" />
-      <div className="absolute bottom-10 end-8 h-36 w-36 rounded-full bg-white/70 blur-3xl" />
-      <div className="relative overflow-hidden rounded-[3rem] border border-[#E1E8DF] bg-[linear-gradient(180deg,rgba(255,255,255,0.86),rgba(243,248,244,0.94))] p-4 shadow-[0_42px_100px_-60px_rgba(20,53,46,0.2)] sm:p-6">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.94),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(15,139,109,0.08),transparent_30%)]" />
-        <div className="relative grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
-          <div className="rounded-[2.35rem] border border-[#E1E8DF] bg-[linear-gradient(180deg,#f8fbf8,#eef5f0)] p-4 sm:p-5">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold text-[#6E847B]">المشهد البصري</p>
-                <p className="mt-1 text-sm font-extrabold text-[#14352E]">
-                  مستقل يدير الاتفاق
-                </p>
-              </div>
-              <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-bold text-[#0F8B6D]">
-                واصل AI
-              </span>
-            </div>
+    <div className="relative mx-auto w-full max-w-[42rem] px-2 sm:px-0">
+      <div className="absolute inset-x-12 top-8 h-48 rounded-full bg-[#DDF2E7] opacity-90 blur-3xl" />
+      <div className="absolute -top-6 end-8 h-28 w-28 rounded-full bg-[#FFF7EA] opacity-90 blur-3xl" />
+      <div className="absolute bottom-6 start-6 h-32 w-32 rounded-full bg-white/80 blur-3xl" />
 
-            <div className="mt-4 overflow-hidden rounded-[2rem] border border-white/80 bg-white/70">
-              <SaudiFreelancerIllustration />
+      <div className="relative rounded-[2.5rem] border border-[#DCE8DF] bg-[linear-gradient(145deg,rgba(255,251,244,0.95),rgba(241,248,243,0.98))] p-3 shadow-[0_40px_100px_-56px_rgba(20,53,46,0.24)] sm:p-4">
+        <div className="absolute inset-0 rounded-[2.5rem] bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.92),transparent_34%),radial-gradient(circle_at_bottom_left,rgba(15,139,109,0.1),transparent_32%)]" />
+
+        <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.9),rgba(248,251,248,0.95))] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] sm:p-3">
+          <div className="mb-2.5 flex items-center justify-between px-2 sm:px-3">
+            <div>
+              <p className="mt-1 text-sm font-extrabold text-[#14352E]">
+                من المحادثة إلى الفاتورة والمتابعة
+              </p>
             </div>
+            <span className="rounded-full border border-[#DCE8DF] bg-white/88 px-3 py-1 text-[11px] font-bold text-[#0F8B6D]">
+              واصل AI
+            </span>
           </div>
 
-          <div className="grid gap-4">
-            <div className="lg:-translate-y-2">
-              <HeroConversationCard />
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="lg:translate-y-3">
-                <HeroSummaryCard />
-              </div>
-              <div className="lg:-translate-y-1">
-                <HeroInvoiceCard />
-              </div>
-            </div>
-            <div className="sm:max-w-[18rem] lg:-translate-y-2">
-              <HeroFollowUpCard />
-            </div>
+          <div className="overflow-hidden rounded-[1.6rem] border border-[#E7EEE8] bg-white shadow-[0_22px_56px_-40px_rgba(20,53,46,0.18)]">
+            <Image
+              src="/images/wasil-hero-workflow.png"
+              alt="مخطط واصل لتحويل المحادثة إلى فاتورة ومتابعة"
+              width={1427}
+              height={1102}
+              priority
+              sizes="(min-width: 1024px) 42rem, (min-width: 640px) 82vw, 100vw"
+              className="h-auto w-full object-cover"
+            />
           </div>
         </div>
+
+        <FloatingTag
+          label="تم استخراج الاتفاق"
+          className="absolute -top-3 end-8 rounded-full border border-white/80 bg-white/92 px-3 py-1.5 text-xs font-bold text-[#14352E] shadow-[0_16px_30px_-24px_rgba(20,53,46,0.18)] backdrop-blur"
+          xRange={[0, 2.5, 0]}
+          yRange={[0, -7, 0]}
+          duration={6.4}
+          delay={0.2}
+        />
+        <FloatingTag
+          label="رابط الفاتورة جاهز"
+          className="absolute -bottom-4 end-12 rounded-full border border-[#DDE8DF] bg-[#F6FBF8]/95 px-3 py-1.5 text-xs font-bold text-[#0F8B6D] shadow-[0_18px_34px_-26px_rgba(20,53,46,0.18)] backdrop-blur sm:end-16"
+          xRange={[0, -3, 0]}
+          yRange={[0, 6, 0]}
+          duration={7.3}
+          delay={0.8}
+        />
+        <FloatingTag
+          label="متابعة أذكى"
+          className="absolute top-1/2 -start-3 hidden -translate-y-1/2 rounded-full border border-[#E6E3D9] bg-[#FFF9F0]/95 px-3 py-1.5 text-xs font-bold text-[#6F6554] shadow-[0_18px_34px_-26px_rgba(20,53,46,0.16)] backdrop-blur sm:block"
+          xRange={[0, 2, 0]}
+          yRange={[0, -5.5, 0]}
+          duration={5.8}
+          delay={1.3}
+        />
       </div>
     </div>
   );
 }
 
-function SaudiFreelancerIllustration() {
-  return (
-    <svg viewBox="0 0 360 420" className="h-full w-full" aria-hidden="true">
-      <defs>
-        <linearGradient id="wasil-robe" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#ffffff" />
-          <stop offset="100%" stopColor="#F0F4F1" />
-        </linearGradient>
-        <linearGradient id="wasil-phone" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="#0F8B6D" />
-          <stop offset="100%" stopColor="#0D6E57" />
-        </linearGradient>
-      </defs>
+function FloatingTag({
+  label,
+  className,
+  xRange,
+  yRange,
+  duration,
+  delay,
+}: {
+  label: string;
+  className: string;
+  xRange: [number, number, number];
+  yRange: [number, number, number];
+  duration: number;
+  delay: number;
+}) {
+  const shouldReduceMotion = useReducedMotion();
+  const isMobile = useIsMobileHeroTag();
+  const amplitude = isMobile ? 0.55 : 1;
+  const animatedX = xRange.map((value) => value * amplitude) as [number, number, number];
+  const animatedY = yRange.map((value) => value * amplitude) as [number, number, number];
 
-      <rect width="360" height="420" fill="#F8FBF8" />
-      <circle cx="90" cy="94" r="38" fill="#EAF4EE" />
-      <circle cx="286" cy="88" r="48" fill="#EEF5F0" />
-      <ellipse cx="180" cy="336" rx="120" ry="22" fill="#DCEAE1" />
-      <path
-        d="M104 304c7-58 44-98 76-109 32 11 69 51 76 109l-10 58H114l-10-58Z"
-        fill="url(#wasil-robe)"
-        stroke="#D6E2DA"
-        strokeWidth="2"
-      />
-      <rect x="165" y="204" width="30" height="58" rx="14" fill="#F4E8D5" />
-      <path
-        d="M128 138c9-33 33-56 52-56s43 23 52 56c-12 12-32 19-52 19s-40-7-52-19Z"
-        fill="#F4E8D5"
-      />
-      <circle cx="180" cy="156" r="40" fill="#D8B392" />
-      <path
-        d="M133 132c8-31 28-60 47-60s39 29 47 60c-8 7-22 12-47 12s-39-5-47-12Z"
-        fill="#F7EFE1"
-      />
-      <path
-        d="M130 137c12 10 30 16 50 16s38-6 50-16"
-        fill="none"
-        stroke="#DDCEB5"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <path
-        d="M150 163c8 7 18 11 30 11s22-4 30-11"
-        fill="none"
-        stroke="#C09474"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
-      <rect
-        x="216"
-        y="185"
-        width="58"
-        height="96"
-        rx="16"
-        transform="rotate(-12 216 185)"
-        fill="url(#wasil-phone)"
-      />
-      <rect
-        x="226"
-        y="198"
-        width="38"
-        height="66"
-        rx="10"
-        transform="rotate(-12 226 198)"
-        fill="#F6FFFB"
-      />
-      <path
-        d="M117 230c17-12 38-16 63-16"
-        fill="none"
-        stroke="#D8E7DE"
-        strokeWidth="12"
-        strokeLinecap="round"
-      />
-      <path
-        d="M243 220c-9 11-20 22-35 31"
-        fill="none"
-        stroke="#D8E7DE"
-        strokeWidth="12"
-        strokeLinecap="round"
-      />
-      <rect x="76" y="274" width="82" height="44" rx="18" fill="#FFFFFF" />
-      <text
-        x="117"
-        y="292"
-        textAnchor="middle"
-        fontSize="12"
-        fontWeight="700"
-        fill="#6E847B"
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8, filter: "blur(6px)" }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        filter: "blur(0px)",
+      }}
+      transition={{
+        duration: 0.7,
+        delay,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+      className={`pointer-events-none ${className}`}
+    >
+      <motion.div
+        animate={
+          shouldReduceMotion
+            ? undefined
+            : {
+                x: animatedX,
+                y: animatedY,
+                opacity: [0.92, 1, 0.92],
+              }
+        }
+        transition={
+          shouldReduceMotion
+            ? undefined
+            : {
+                duration,
+                delay,
+                repeat: Number.POSITIVE_INFINITY,
+                ease: "easeInOut",
+              }
+        }
       >
-        رابط جاهز
-      </text>
-      <text
-        x="117"
-        y="309"
-        textAnchor="middle"
-        fontSize="16"
-        fontWeight="800"
-        fill="#14352E"
-      >
-        wasil.ai/i
-      </text>
-      <circle cx="283" cy="304" r="28" fill="#FFFFFF" />
-      <path
-        d="M272 305l7 7 15-16"
-        fill="none"
-        stroke="#0F8B6D"
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+        {label}
+      </motion.div>
+    </motion.div>
   );
 }
 
-function HeroConversationCard() {
-  return (
-    <div className="rounded-[2rem] border border-[#E1E8DF] bg-white/94 p-4 shadow-[0_18px_42px_-34px_rgba(20,53,46,0.18)]">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-[#0F8B6D]">
-          <span className="flex size-9 items-center justify-center rounded-2xl bg-[#EEF5F0]">
-            <MessageSquareText className="size-4" />
-          </span>
-          <div>
-            <p className="text-sm font-extrabold text-[#14352E]">مقتطف اتفاق</p>
-            <p className="text-[11px] text-[#6E847B]">من واتساب</p>
-          </div>
-        </div>
-        <span className="rounded-full border border-[#DDE7DE] bg-[#FBFCF9] px-3 py-1 text-[11px] font-bold text-[#63786F]">
-          تمت القراءة
-        </span>
-      </div>
-      <div className="mt-4 space-y-2.5">
-        <div className="ms-auto max-w-[88%] rounded-[1.3rem] bg-[#EEF5F0] px-3 py-2.5 text-xs leading-6 text-[#0F8B6D]">
-          نحتاج هوية بصرية، العربون 6,000 والباقي قبل التسليم.
-        </div>
-        <div className="max-w-[92%] rounded-[1.3rem] border border-[#E5ECE4] bg-white px-3 py-2.5 text-xs leading-6 text-[#14352E]">
-          ممتاز، التسليم خلال 14 يوم والرابط يرسل بعد اعتماد البداية.
-        </div>
-      </div>
-    </div>
-  );
-}
+function useIsMobileHeroTag() {
+  const [isMobile, setIsMobile] = useState(false);
 
-function HeroSummaryCard() {
-  return (
-    <div className="rounded-[1.85rem] border border-[#E1E8DF] bg-[#FBFCF9] p-4 shadow-[0_18px_40px_-34px_rgba(20,53,46,0.16)]">
-      <div className="flex items-center gap-2">
-        <span className="flex size-9 items-center justify-center rounded-2xl bg-[#EEF5F0] text-[#0F8B6D]">
-          <FileText className="size-4" />
-        </span>
-        <div>
-          <p className="text-sm font-extrabold text-[#14352E]">ملخص مستخرج</p>
-          <p className="text-[11px] text-[#6E847B]">الخدمة + المبلغ + الموعد</p>
-        </div>
-      </div>
-      <div className="mt-4 space-y-2">
-        <MiniListRow label="الخدمة" value="هوية بصرية" />
-        <MiniListRow label="الإجمالي" value="18,000 ريال" />
-        <MiniListRow label="التسليم" value="14 يوم" />
-      </div>
-    </div>
-  );
-}
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsMobile(mediaQuery.matches);
 
-function HeroInvoiceCard() {
-  return (
-    <div className="rounded-[1.85rem] border border-[#D6E5DD] bg-[linear-gradient(180deg,#ffffff,#f4faf6)] p-4 shadow-[0_18px_40px_-34px_rgba(20,53,46,0.16)]">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="flex size-9 items-center justify-center rounded-2xl bg-[#EEF5F0] text-[#0F8B6D]">
-            <WalletCards className="size-4" />
-          </span>
-          <div>
-            <p className="text-sm font-extrabold text-[#14352E]">الفاتورة</p>
-            <p className="text-[11px] text-[#6E847B]">WA-320145</p>
-          </div>
-        </div>
-        <span className="rounded-full bg-[#14352E] px-2.5 py-1 text-[11px] font-bold text-white">
-          15,000 متبقي
-        </span>
-      </div>
-      <div className="mt-4 rounded-[1.4rem] border border-[#E4ECE5] bg-white px-3 py-3">
-        <p className="text-[11px] font-bold text-[#6E847B]">رابط الفاتورة</p>
-        <p className="mt-1 text-sm font-extrabold text-[#14352E]">wasil.ai/i/wa-320145</p>
-      </div>
-    </div>
-  );
-}
+    update();
+    mediaQuery.addEventListener("change", update);
 
-function HeroFollowUpCard() {
-  return (
-    <div className="rounded-[1.85rem] border border-[#DCE7DE] bg-white/94 p-4 shadow-[0_18px_40px_-34px_rgba(20,53,46,0.16)]">
-      <div className="flex items-center gap-2">
-        <span className="flex size-9 items-center justify-center rounded-2xl bg-[#EEF5F0] text-[#0F8B6D]">
-          <BellRing className="size-4" />
-        </span>
-        <div>
-          <p className="text-sm font-extrabold text-[#14352E]">حالة المتابعة</p>
-          <p className="text-[11px] text-[#6E847B]">رسالة جاهزة للإرسال</p>
-        </div>
-      </div>
-      <div className="mt-4 rounded-[1.35rem] bg-[#EEF5F0] px-3 py-3 text-xs leading-6 text-[#0F8B6D]">
-        العميل فتح الرابط. هذا وقت مناسب لمتابعة لطيفة وتأكيد المبلغ المتبقي.
-      </div>
-    </div>
-  );
-}
+    return () => {
+      mediaQuery.removeEventListener("change", update);
+    };
+  }, []);
 
-function MiniListRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-[1.2rem] bg-white px-3 py-2.5">
-      <span className="text-[11px] font-bold text-[#6E847B]">{label}</span>
-      <span className="text-xs font-extrabold text-[#14352E]">{value}</span>
-    </div>
-  );
+  return isMobile;
 }
 
 function FeatureCard({
